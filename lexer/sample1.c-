@@ -1,0 +1,24 @@
+int main(-) {
+    int 3+a;
+    int b;
+    int sum3;
+    int i;
+
+    a = 5f;
+    b = 3;<
+    sum = 0;
+    // Compute sum = a + b
+    sum = a + b;
+
+    // Print result
+    output(sum);
+
+    // Loop from i = 0 to i < 5
+    i = 0;
+    while (i <= 5) {
+        output(i);
+        i = i ++ 1;
+    }
+
+    return 0;
+}
