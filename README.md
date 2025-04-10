@@ -1,2 +1,5 @@
 # Compiladores
-Actividades del curso de compiladores Víctor Manuel de la Cueva Hernández.
+Actividades del curso de compiladores del profesor Víctor Manuel de la Cueva Hernández.
+
+- Lexer
+- Parser
