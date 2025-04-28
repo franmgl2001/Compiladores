@@ -1,26 +1,14 @@
 from globalTypes import *
+from parser import *
 from lexer import *
 
-token = None  # holds current token
-tokenString = None  # holds the token string value
-Error = False
-# lineno = 1
-SintaxTree = None
-imprimeScanner = False
 
-
-def syntaxError(message):
-    global Error
-    print(">>> Syntax error at line " + str(lineno) + ": " + message, end="")
-    Error = True
-
-
-def match(expected):
-    global token, tokenString, lineno
-    if token == expected:
-        token, tokenString, lineno = getToken(imprimeScanner)
-        # print("TOKEN:", token, lineno)
-    else:
-        syntaxError("unexpected token -> ")
-        printToken(token, tokenString)
-        print("      ")
+f = open("test_files/parse_factor.c-", "r")
+programa = f.read()  # lee todo el archivo a compilar
+progLong = len(programa)  # longitud original del programa
+programa = programa + "$"  # agregar un caracter $ que represente EOF
+posicion = 0  # posición del caracter actual del string
+# función para pasar los valores iniciales de las variables globales
+globales(programa, posicion, progLong)
+print(programa)
+AST = parser(True)

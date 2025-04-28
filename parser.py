@@ -26,15 +26,92 @@ def match(expected):
         print("      ")
 
 
+def parse_operation_exp():
+    t = parse_term()
+    while token in {TokenType.PLUS, TokenType.MINUS}:
+        op_tok = token
+        match(token)
+        right = parse_term()
+        p = newExpNode(ExpKind.OpK)
+        p.op = op_tok
+        p.child[0] = t
+        p.child[1] = right
+        t = p
+    return t
+
+
+def parse_term():
+    t = parse_factor()
+    while token in {TokenType.TIMES, TokenType.OVER}:
+        op_tok = token
+        match(token)
+        right = parse_factor()
+        p = newExpNode(ExpKind.OpK)
+        p.op = op_tok
+        p.child[0] = t
+        p.child[1] = right
+        t = p
+    return t
+
+
+def parse_simple_expression():
+    """
+    simple‐expression → additive‐expr { relop additive‐expr }
+    where relop is one of <, <=, >, >=, ==, !=
+    """
+    t = parse_operation_exp()
+    while token in {
+        TokenType.LT,
+        TokenType.LE,
+        TokenType.GT,
+        TokenType.GE,
+        TokenType.EQEQ,
+        TokenType.NE,
+    }:
+        op_tok = token
+        match(op_tok)
+        right = parse_operation_exp()
+        p = newExpNode(ExpKind.OpK)
+        p.op = op_tok
+        p.child[0] = t
+        p.child[1] = right
+        t = p
+    return t
+
+
+def parse_factor():
+    if token == TokenType.ID:
+        name = tokenString
+        match(TokenType.ID)
+        t = newExpNode(ExpKind.IdK)
+        t.name = name
+        return t
+    elif token == TokenType.NUM:
+        val = int(tokenString)
+        match(TokenType.NUM)
+        t = newExpNode(ExpKind.ConstK)
+        t.val = val
+        return t
+    elif token == TokenType.LPAREN:
+        match(TokenType.LPAREN)
+        t = parse_operation_exp()
+        match(TokenType.RPAREN)
+        return t
+    else:
+        print("Factor error")
+        syntaxError("unexpected token -> ")
+
+
 def stmt_sequence():
+    print("stmt_sequence")
     t = statement()
     p = t
     while (
         (token != TokenType.ENDFILE)
-        and (token != TokenType.END)
         and (token != TokenType.ELSE)
-        and (token != TokenType.UNTIL)
+        and (token != TokenType.RBRACE)
     ):
+        print("stmt_sequence while", token)
         match(TokenType.SEMI)
         q = statement()
         if q != None:
@@ -46,12 +123,53 @@ def stmt_sequence():
     return t
 
 
+def parse_if_stmt():
+    match(TokenType.IF)
+    t = newStmtNode(StmtKind.IfK)
+    t.child[0] = parse_simple_expression()
+    match(TokenType.LBRACE)
+    t.child[1] = stmt_sequence()
+    match(TokenType.RBRACE)
+    return t
+
+
+def parse_while_stmt():
+    match(TokenType.WHILE)
+    t = newStmtNode(StmtKind.WhileK)
+    t.child[0] = parse_simple_expression()
+    match(TokenType.LBRACE)
+    t.child[1] = stmt_sequence()
+    match(TokenType.RBRACE)
+    return t
+
+
+def parse_return_stmt():
+    t = newStmtNode(StmtKind.ReturnK)
+    match(TokenType.RETURN)
+    t.child[0] = parse_simple_expression()
+    return t
+
+
+def parse_compound_stmt():
+    t = newStmtNode(StmtKind.CompoundK)
+    match(TokenType.LBRACE)
+    t.child[0] = stmt_sequence()
+    match(TokenType.RBRACE)
+    return t
+
+
 def statement():
     global token, tokenString, lineno
     # print("STATEMENT: ", token, lineno)
     t = None
     if token == TokenType.IF:
-        print("IF")
+        t = parse_if_stmt()
+    elif token == TokenType.RETURN:
+        t = parse_return_stmt()
+    elif token == TokenType.LBRACE:
+        t = parse_compound_stmt()
+    elif token == TokenType.WHILE:
+        t = parse_while_stmt()
     else:
         syntaxError("unexpected token -> ")
         printToken(token, tokenString)
@@ -163,14 +281,12 @@ def printTree(tree):
         if tree.nodekind == NodeKind.StmtK:
             if tree.stmt == StmtKind.IfK:
                 print(tree.lineno, "If")
-            elif tree.stmt == StmtKind.RepeatK:
-                print(tree.lineno, "Repeat")
-            elif tree.stmt == StmtKind.AssignK:
-                print(tree.lineno, "Assign to: ", tree.name)
-            elif tree.stmt == StmtKind.ReadK:
-                print(tree.lineno, "Read: ", tree.name)
-            elif tree.stmt == StmtKind.WriteK:
-                print(tree.lineno, "Write")
+            elif tree.stmt == StmtKind.ReturnK:
+                print(tree.lineno, "Return")
+            elif tree.stmt == StmtKind.WhileK:
+                print(tree.lineno, "While")
+            elif tree.stmt == StmtKind.CompoundK:
+                print(tree.lineno, "Compound")
             else:
                 print(tree.lineno, "Unknown ExpNode kind")
         elif tree.nodekind == NodeKind.ExpK:
@@ -201,7 +317,7 @@ def printSpaces():
     print(" " * indentno, end="")
 
 
-def parse(imprime=True):
+def parser(imprime=True):
     global token, tokenString, lineno
     token, tokenString, lineno = getToken(imprimeScanner)
     t = stmt_sequence()

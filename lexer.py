@@ -452,4 +452,4 @@ def getToken(imprime=False):
     if imprime:
         print(f"({currentToken}, {lexema})")
         # Regresa el token y el lexema
-    return currentToken, lexema
+    return currentToken, lexema, linea
