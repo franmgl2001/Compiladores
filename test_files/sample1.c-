@@ -19,6 +19,8 @@ int main(int a, int b) {
     print();
     i= 5+5;
     return 0;
+    hola hola;
 }
+
 
 hola = 9;

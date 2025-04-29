@@ -18,7 +18,13 @@ def syntaxError(message):
     print("”")
     Error = True
     # now skip tokens until we find a good resynchronization point...
-    sync = {TokenType.SEMI, TokenType.RBRACE, TokenType.ENDFILE}
+    sync = {
+        TokenType.SEMI,
+        TokenType.RBRACE,
+        TokenType.ELSE,
+        TokenType.RETURN,
+        TokenType.ENDFILE,
+    }
     while token not in sync:
         token, tokenString, lineno = getToken(imprimeScanner)
     # if we stopped on a semicolon, consume it so we don't loop forever
@@ -151,13 +157,16 @@ def parse_operation_exp():
     t = parse_term()
     while token in {TokenType.PLUS, TokenType.MINUS}:
         op_tok = token
+        op_line = lineno  # ← grab it right now
         match(token)
         right = parse_term()
         p = newExpNode(ExpKind.OpK)
+        p.lineno = op_line  # ← overwrite with the real line
         p.op = op_tok
         p.child[0] = t
         p.child[1] = right
         t = p
+    return t
 
 
 # Function que parsea el termino de una expresion
@@ -257,6 +266,7 @@ def parse_function_call(callee_name):
     global token, tokenString, lineno
     # consume '('
     match(TokenType.LPAREN)
+    call_line = lineno  # ← grab the line of the "print" name
     # parse comma-separated arguments
     args = []
     if token != TokenType.RPAREN:
@@ -267,6 +277,7 @@ def parse_function_call(callee_name):
     match(TokenType.RPAREN)
     # build call node
     call_node = newExpNode(ExpKind.CallK)
+    call_node.lineno = call_line  # ← stamp it correctly
     call_node.name = callee_name
     # attach arguments as child nodes
     for idx, arg in enumerate(args):
