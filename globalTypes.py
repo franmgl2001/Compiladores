@@ -64,6 +64,7 @@ class NodeKind(Enum):
     DeclK = 2
 
 
+# Tipos de declaraciones
 class DeclKind(Enum):
     VarK = 0
     FunK = 1
@@ -77,6 +78,7 @@ class ExpType(Enum):
     Integer = 1
 
 
+# Tipos de sentencias
 class StmtKind(Enum):
     IfK = 0
     AssignK = 1
@@ -85,6 +87,7 @@ class StmtKind(Enum):
     WhileK = 4
 
 
+# Tipos de expresiones
 class ExpKind(Enum):
     OpK = 0
     ConstK = 1
@@ -92,26 +95,21 @@ class ExpKind(Enum):
     CallK = 3
 
 
-# Máximo número de hijos por nodo (3 para el if)
+# Máximo número de hijos por nodo
 MAXCHILDREN = 3
 
 
+# Nodo de árbol
 class TreeNode:
     def __init__(self):
-        # MAXCHILDREN = 3 está en globalTypes
-        self.child = [None] * MAXCHILDREN  # tipo treeNode
-        self.sibling = None  # tipo treeNode
-        self.lineno = 0  # tipo int
-        self.nodekind = None  # tipo NodeKind, en globalTypes
-        # en realidad los dos siguientes deberían ser uno solo (kind)
-        # siendo la  union { StmtKind stmt; ExpKind exp;}
-        self.stmt = None  # tipo StmtKind
-        self.exp = None  # tipo ExpKind
-        self.decl = None  # tipo DeclKind
-        # en realidad los tres siguientes deberían ser uno solo (attr)
-        # siendo la  union { TokenType op; int val; char * name;}
-        self.op = None  # tipo TokenType
-        self.val = None  # tipo int
-        self.name = None  # tipo String
-        # for type checking of exps
-        self.type = None  # de tipo ExpType
+        self.child = [None] * MAXCHILDREN
+        self.sibling = None
+        self.lineno = 0
+        self.nodekind = None
+        self.stmt = None
+        self.exp = None
+        self.decl = None
+        self.op = None
+        self.val = None
+        self.name = None
+        self.type = None

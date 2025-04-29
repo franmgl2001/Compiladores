@@ -4,7 +4,7 @@ int main(int a, int b) {
     int x [4];
     a = 5;
     b = 3;
-    sum = 0;
+    sum = 0 + hola();
     // Compute sum = a + b
     sum = a + b;
 

@@ -1,9 +1,11 @@
+int n;
+int a[1];
 int factorial(int n) {
   if (n == 0) {
     return n*factorial(2,2);
   } 
   else{
-    hola  1;
+    sum = 0 + hola(1,hola +1 );
   }
 }
 
@@ -11,6 +13,9 @@ void main(void) {
   int result;
   result = factorial(5);
 }
-n * < n n
+print(a< <b);
+
+print(i[9])
+n =n * < n n
 
 /*jola*/
