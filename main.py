@@ -3,7 +3,7 @@ from parser import *
 from lexer import *
 
 
-f = open("test_files/parse_factor.c-", "r")
+f = open("test_files/sample2.c-", "r")
 programa = f.read()  # lee todo el archivo a compilar
 progLong = len(programa)  # longitud original del programa
 programa = programa + "$"  # agregar un caracter $ que represente EOF

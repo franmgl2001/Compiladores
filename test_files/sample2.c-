@@ -1,8 +1,9 @@
 int factorial(int n) {
   if (n == 0) {
-    return 1;
-  } else {
-    return n * factorial(n - 13n);
+    return n*factorial(2,2);
+  } 
+  else{
+    hola  1;
   }
 }
 
@@ -10,3 +11,6 @@ void main(void) {
   int result;
   result = factorial(5);
 }
+n * < n n
+
+/*jola*/

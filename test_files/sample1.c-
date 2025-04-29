@@ -1,11 +1,9 @@
-int main(-) {
-    int 3+a;
-    int b;
-    int sum3;
+int main(int a, int b) {
+    int sum;
     int i;
-
-    a = 5f;
-    b = 3;<
+    int x [4];
+    a = 5;
+    b = 3;
     sum = 0;
     // Compute sum = a + b
     sum = a + b;
@@ -16,9 +14,11 @@ int main(-) {
     // Loop from i = 0 to i < 5
     i = 0;
     while (i <= 5) {
-        output(i);
-        i = i ++ 1;
+        output(i, 3+3 *a);
     }
-
+    print();
+    i= 5+5;
     return 0;
 }
+
+hola = 9;

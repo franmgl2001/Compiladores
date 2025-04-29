@@ -61,19 +61,20 @@ class ReservedWords(Enum):
 class NodeKind(Enum):
     StmtK = 0
     ExpK = 1
+    DeclK = 2
 
 
-class ExpKind(Enum):
-    OpK = 0
-    ConstK = 1
-    IdK = 2
+class DeclKind(Enum):
+    VarK = 0
+    FunK = 1
+    ParamK = 2
+    ParamArrayK = 3
 
 
 # Tipos de datos
 class ExpType(Enum):
     Void = 0
     Integer = 1
-    Boolean = 2
 
 
 class StmtKind(Enum):
@@ -88,6 +89,7 @@ class ExpKind(Enum):
     OpK = 0
     ConstK = 1
     IdK = 2
+    CallK = 3
 
 
 # Máximo número de hijos por nodo (3 para el if)
@@ -105,6 +107,7 @@ class TreeNode:
         # siendo la  union { StmtKind stmt; ExpKind exp;}
         self.stmt = None  # tipo StmtKind
         self.exp = None  # tipo ExpKind
+        self.decl = None  # tipo DeclKind
         # en realidad los tres siguientes deberían ser uno solo (attr)
         # siendo la  union { TokenType op; int val; char * name;}
         self.op = None  # tipo TokenType
