@@ -1,4 +1,5 @@
 from globalTypes import *
+import lexer
 from lexer import *
 
 token = None  # holds current token
@@ -11,13 +12,14 @@ imprimeScanner = False
 
 # Function que imprime el error de sintaxis
 def syntaxError(message):
+
     global Error, token, tokenString, lineno
-    # print the message along with the *current* token and its lexeme
-    print(f">>> Syntax error at line {lineno}: {message}; found “", end="")
-    printToken(token, tokenString)
-    print("”")
+    # primero, invocamos la función de error del lexer:
+    #   lexer.error(mensaje, linea, columna, programa)
+    lexer.error(message, lexer.linea, lexer.columna, lexer.programa)
+
     Error = True
-    # now skip tokens until we find a good resynchronization point...
+
     sync = {
         TokenType.SEMI,
         TokenType.RBRACE,
@@ -27,7 +29,6 @@ def syntaxError(message):
     }
     while token not in sync:
         token, tokenString, lineno = getToken(imprimeScanner)
-    # if we stopped on a semicolon, consume it so we don't loop forever
     if token == TokenType.SEMI:
         token, tokenString, lineno = getToken(imprimeScanner)
 
@@ -267,7 +268,6 @@ def parse_function_call(callee_name):
     # consume '('
     match(TokenType.LPAREN)
     call_line = lineno  # ← grab the line of the "print" name
-    # parse comma-separated arguments
     args = []
     if token != TokenType.RPAREN:
         args.append(parse_expression())
@@ -325,12 +325,11 @@ def stmt_sequence():
         and (token != TokenType.ELSE)
         and (token != TokenType.RBRACE)
     ):
-        # Don't expect a semicolon here, as it should already be consumed by statement()
         q = statement()
         if q != None:
             if t == None:
                 t = p = q
-            else:  # now p cannot be NULL either
+            else:
                 p.sibling = q
                 p = q
     return t
