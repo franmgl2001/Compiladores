@@ -93,6 +93,7 @@ class ExpKind(Enum):
     ConstK = 1
     IdK = 2
     CallK = 3
+    ArrayK = 4
 
 
 # Máximo número de hijos por nodo

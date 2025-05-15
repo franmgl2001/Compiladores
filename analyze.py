@@ -275,8 +275,7 @@ def check_statement_expression(t):
         expr = t.child[0]
 
         # Se verifica si estamos dentro de una funcion
-        if current_function is None:
-            typeError(t, "Return statement outside of function")
+        if current_function is None and t.nodekind == NodeKind.StmtK:
             return
 
         # Se obtiene el tipo de retorno de la funcion

@@ -191,31 +191,27 @@ def parse_term():
 # Function que parsea la expresion y la asignacion
 def parse_expression_and_assignment():
     global token, tokenString, lineno
-    # En caso de que el token sea un identificador
-    if token == TokenType.ID:
-        name = tokenString
-        saved_token, saved_string, saved_lineno = token, tokenString, lineno
-        match(TokenType.ID)
-        # En caso de que el token sea un igual
-        if token == TokenType.EQ:
-            match(TokenType.EQ)
-            rhs = parse_expression()
-            p = newExpNode(ExpKind.OpK)
-            p.op = TokenType.EQ
-            left = newExpNode(ExpKind.IdK)
-            left.name = name
-            p.child[0] = left
-            p.child[1] = rhs
-            # Consume the semicolon
-            match(TokenType.SEMI)
-            return p
-        elif token == TokenType.LPAREN:
-            # we've already eaten the ID; parse the parens & args
-            call_node = parse_function_call(name)
-            match(TokenType.SEMI)
-            return call_node
-        else:
-            token, tokenString, lineno = saved_token, saved_string, saved_lineno
+
+    # Save state in case we need to backtrack
+    saved_token, saved_string, saved_lineno = token, tokenString, lineno
+    lhs = parse_factor()  # Puede ser IdK o ArrayK
+
+    if token == TokenType.EQ:
+        match(TokenType.EQ)
+        rhs = parse_expression()
+        assign = newExpNode(ExpKind.OpK)
+        assign.op = TokenType.EQ
+        assign.child[0] = lhs
+        assign.child[1] = rhs
+        match(TokenType.SEMI)
+        return assign
+
+    # Si no fue asignación, revisamos si fue una expresión sin `=`
+    token, tokenString, lineno = saved_token, saved_string, saved_lineno
+    result = parse_expression()
+    if token == TokenType.SEMI:
+        match(TokenType.SEMI)
+    return result
 
     result = parse_expression()
     # En caso de que el token no sea un punto y coma, parentesis, corchete o llave
@@ -297,9 +293,19 @@ def parse_factor():
         match(TokenType.ID)
         if token == TokenType.LPAREN:
             return parse_function_call(name)
-        t = newExpNode(ExpKind.IdK)
-        t.name = name
-        return t
+        elif token == TokenType.LBRACKET:
+            # Parse array access: a[3]
+            match(TokenType.LBRACKET)
+            index_expr = parse_expression()
+            match(TokenType.RBRACKET)
+            t = newExpNode(ExpKind.ArrayK)
+            t.name = name
+            t.child[0] = index_expr
+            return t
+        else:
+            t = newExpNode(ExpKind.IdK)
+            t.name = name
+            return t
     elif token == TokenType.NUM:
         val = int(tokenString)
         match(TokenType.NUM)

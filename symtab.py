@@ -76,6 +76,14 @@ def st_get_metadata(name):
     return {}
 
 
+def st_is_array(name):
+    # Si el simbolo existe en el scope actual, se retorna si es un array
+    for scope in [BucketList] + list(reversed(scopes)):
+        if name in scope:
+            return scope[name].get("is_array", False)
+    return False
+
+
 # Funcion para imprimir el simbolo table
 def printSymTab():
     # Funcion para imprimir la tabla de simbolos
