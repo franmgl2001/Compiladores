@@ -7,7 +7,7 @@ tokenString = None  # holds the token string value
 Error = False
 # lineno = 1
 SintaxTree = None
-imprimeScanner = False
+imprimeScanner = True
 
 
 # Function que imprime el error de sintaxis

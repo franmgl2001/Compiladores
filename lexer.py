@@ -49,23 +49,7 @@ def check_error_double_char(posicion, programa, except_char=None):
     Funcion que verifica si el character esta en una posicion valida
     """
     if posicion + 1 < progLong and programa[posicion + 1] in (
-        [
-            "+",
-            "-",
-            "*",
-            "/",
-            "=",
-            "!",
-            "<",
-            ">",
-            ",",
-            "(",
-            ")",
-            "{",
-            "}",
-            "[",
-            "]",
-        ]  # Se uso gpt para generar la lista
+        ["+", "-", "*", "/", "=", "!", "<", ">"]  # Se uso gpt para generar la lista
     ):
         if except_char and programa[posicion + 1] == except_char:
             return False
