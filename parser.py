@@ -358,7 +358,7 @@ def parse_if_stmt():
 def parse_while_stmt():
     match(TokenType.WHILE)
     t = newStmtNode(StmtKind.WhileK)
-    t.child[0] = parse_expression_and_assignment()
+    t.child[0] = parse_expression()
     match(TokenType.LBRACE)
     t.child[1] = stmt_sequence()
     match(TokenType.RBRACE)

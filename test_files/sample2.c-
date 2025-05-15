@@ -5,13 +5,21 @@ void hola(void) {
   n =2;
 };
 
-int factorial (int c[1]){
-  hola();
+int factorial (int c[1], int k){
+  int cont;
+  while (cont < 4){
+    cont = cont + k;
+  };
 }
 
-if ( hola()){
-  factorial();
+
+
+int cont;
+cont = k;
+if (a){
+    w;
 };
+
 
 
 
