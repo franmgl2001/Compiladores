@@ -76,7 +76,7 @@ def st_get_metadata(name):
     return {}
 
 
-def st_is_array(name):
+def st_get_is_array(name):
     # Si el simbolo existe en el scope actual, se retorna si es un array
     for scope in [BucketList] + list(reversed(scopes)):
         if name in scope:

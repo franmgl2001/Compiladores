@@ -20,7 +20,7 @@ def typeError(t, message):
     line_number = t.lineno
     print(f"Línea {line_number}: Error en el tipo: {message}")
     if 0 <= line_number - 1 < len(source_lines):
-        print(source_lines[line_number - 1].rstrip())
+        print(source_lines[line_number - 2].rstrip())
     Error = True
 
 
@@ -191,6 +191,69 @@ def check_expression(t):
         if t.type == ExpType.Void:
             # Si el simbolo es de tipo void, se muestra un error
             typeError(t, f"variable '{t.name}' declared void")
+
+        # Verificar que no se está usando un array sin el operador de índice
+        is_array = st_get_is_array(t.name)
+        if is_array:
+            typeError(
+                t,
+                f"Array variable '{t.name}' must be accessed with an index (e.g., {t.name}[0])",
+            )
+
+    elif t.exp == ExpKind.ArrayK:
+        # Se busca el simbolo en el scope actual
+        sym = st_lookup_current_scope(t.name)
+        if sym == -1:
+            # Si el simbolo no existe en el scope actual, se muestra un error
+            typeError(t, f"Variable '{t.name}' not declared")
+            return
+
+        t.type = st_get_type(t.name)
+        if t.type == ExpType.Void:
+            # Si el simbolo es de tipo void, se muestra un error
+            typeError(t, f"variable '{t.name}' declared void")
+
+        # Verificar que la variable es un array
+        is_array = st_get_is_array(t.name)
+        if not is_array:
+            typeError(
+                t, f"Non-array variable '{t.name}' cannot be accessed with an index"
+            )
+
+        # Verificar que el indice sea de tipo entero
+        if t.child[0]:
+            check_expression(t.child[0])
+            if t.child[0].type != ExpType.Integer:
+                typeError(t.child[0], f"Array index must be an integer expression")
+
+    elif t.exp == ExpKind.OpK:
+        # Procesar los lados izquierdo y derecho de la operacion
+        if t.child[0]:
+            check_expression(t.child[0])
+        if t.child[1]:
+            check_expression(t.child[1])
+
+        # Checar si es una asignacion
+        if t.op == TokenType.EQ:
+            # Check if left side is an array access or identifier
+            left = t.child[0]
+            if left and left.exp == ExpKind.IdK:
+                # Check if trying to assign directly to an array
+                is_array = st_get_is_array(left.name)
+                if is_array:
+                    typeError(
+                        left,
+                        f"Array variable '{left.name}' must be accessed with an index for assignment",
+                    )
+
+        # Establecer el tipo de resultado
+        if t.child[0] and t.child[1]:
+            # Por ahora, asumir que el tipo de resultado es el mismo que los operandos si coinciden
+            if t.child[0].type == t.child[1].type:
+                t.type = t.child[0].type
+            else:
+                # Type mismatch
+                typeError(t, f"Type mismatch in operation")
 
     elif t.exp == ExpKind.CallK:
         sym = st_lookup_current_scope(t.name)

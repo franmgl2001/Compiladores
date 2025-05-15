@@ -5,6 +5,7 @@ void hola(void) {
   n =2;
 };
 
+
 int factorial (int c[1], int k){
   int cont;
   while (cont < 4){
@@ -13,14 +14,15 @@ int factorial (int c[1], int k){
   return k;
   
 }
+int n;
 
 a[0] = 1;
 void w(void) {
-  print();
+  a[1] = 1;
 };
 int cont;
 cont = k;
-if (a){
+if (a[0]){
     w;
 };
 
