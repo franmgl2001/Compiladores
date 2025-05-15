@@ -3,11 +3,24 @@ from symtab import *
 
 
 location = 0
+current_function = None  # Track current function for return type checking
+source_lines = []  # Global variable to store source code lines
+
+
+# Funcion para cargar el código fuente
+def load_code(filename):
+    global source_lines
+    with open(filename, "r") as file:
+        source_lines = file.readlines()
 
 
 # Funcion para mostrar un error de tipo
 def typeError(t, message):
-    print("Type error at line", t.lineno, ":", message)
+    global source_lines
+    line_number = t.lineno
+    print(f"Línea {line_number}: Error en el tipo: {message}")
+    if 0 <= line_number - 1 < len(source_lines):
+        print(source_lines[line_number - 1].rstrip())
     Error = True
 
 
@@ -43,7 +56,7 @@ def handle_scope(t):
 
 # Funcion para insertar una declaracion en el scope actual
 def insert_declaration(t):
-    global location
+    global location, current_function
 
     if t.nodekind != NodeKind.DeclK:
         return
@@ -80,6 +93,11 @@ def insert_declaration(t):
         )
         location += 1
 
+        # Guardar el contexto de la funcion anterior
+        prev_function = current_function
+        # Establecer la funcion actual
+        current_function = t
+
         # Se crea un nuevo scope para las declaraciones y sentencias de la funcion
         enter_scope(t.name)
 
@@ -103,6 +121,8 @@ def insert_declaration(t):
         traverse(t.child[1], insert_declaration, lambda t: None)
 
         exit_scope()
+        # Salir de la funcion
+        current_function = prev_function
         return
 
     # Si el simbolo ya existe en el scope actual, se muestra un error
@@ -129,13 +149,12 @@ def custom_traverse(t):
 
 # Funcion para construir la tabla de simbolos
 def buildSymtab(tree, imprime):
-    global location
+    global location, current_function
     location = 0
+    current_function = None
     scopes.clear()
     scope_names.clear()
     BucketList.clear()
-
-    # Custom traversal that handles scopes
 
     # Start traversal with custom scope-aware function
     custom_traverse(tree)
@@ -218,6 +237,15 @@ def check_expression(t):
 
 # Funcion para verificar una sentencia
 def check_statement_expression(t):
+    global current_function
+
+    # Save the previous function context
+    prev_function = current_function
+
+    # If this is a function declaration, update current function
+    if t.nodekind == NodeKind.DeclK and t.decl == DeclKind.FunK:
+        current_function = t
+
     # Se verifica si la sentencia es una sentencia if
     if t.stmt == StmtKind.IfK:
         cond = t.child[0]
@@ -228,7 +256,7 @@ def check_statement_expression(t):
             if cond.type != ExpType.Integer:
                 typeError(
                     cond,
-                    "Condition in if statement must be an expression of type integer or bool",
+                    "Error en el tipo de la expresión: se esperaba tipo Integer en la condición if",
                 )
     # Se verifica si la sentencia es una sentencia while
     elif t.stmt == StmtKind.WhileK:
@@ -245,19 +273,65 @@ def check_statement_expression(t):
     # Se verifica si la sentencia es una sentencia return
     elif t.stmt == StmtKind.ReturnK:
         expr = t.child[0]
-        if expr is None:
+
+        # Se verifica si estamos dentro de una funcion
+        if current_function is None:
+            typeError(t, "Return statement outside of function")
             return
+
+        # Se obtiene el tipo de retorno de la funcion
+        func_return_type = current_function.type
+
+        if expr is None:
+            # Se verifica si la funcion es de tipo void
+            if func_return_type != ExpType.Void:
+                typeError(
+                    t,
+                    f"Function '{current_function.name}' must return a value of type {func_return_type.name}",
+                )
+            return
+
+        # Se verifica la integridad de la expresion
         check_expression(expr)
+
+        # Se verifica si el tipo de la expresion es el mismo que el de la funcion
+        if expr.type != func_return_type:
+            typeError(
+                t,
+                f"Function '{current_function.name}' must return type {func_return_type.name}, but got {expr.type.name}",
+            )
+
+    for i in range(MAXCHILDREN):
+        child = t.child[i]
+        if child:
+            check_statement_expression(child)
+
+    if t.nodekind == NodeKind.DeclK and t.decl == DeclKind.FunK:
+        current_function = prev_function
 
 
 # Funcion para verificar la integridad del nodo
 def check_node_integrity(t):
     if t.nodekind == NodeKind.StmtK:
-        check_declaration(t)
         check_statement_expression(t)
     elif t.nodekind == NodeKind.ExpK:
         check_expression(t)
+    elif t.nodekind == NodeKind.DeclK:
+        if t.decl == DeclKind.FunK:
+            # Procesar declaraciones de funciones
+            global current_function
+            prev_function = current_function
+            current_function = t
+
+            # Verificar el cuerpo de la funcion
+            if t.child[1]:
+                check_statement_expression(t.child[1])
+
+            # Restaurar el contexto de la funcion anterior
+            current_function = prev_function
 
 
 def typeCheck(syntaxTree):
+    global current_function
+    current_function = None
     traverse(syntaxTree, lambda t: None, check_node_integrity)

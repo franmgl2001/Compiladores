@@ -10,10 +10,13 @@ int factorial (int c[1], int k){
   while (cont < 4){
     cont = cont + k;
   };
+  return hola();
 }
 
 
-
+void w(void) {
+  print();
+};
 int cont;
 cont = k;
 if (a){
