@@ -343,12 +343,12 @@ def parse_if_stmt():
     match(TokenType.IF)
     match(TokenType.LPAREN)
     t = newStmtNode(StmtKind.IfK)
-    t.child[0] = parse_expression()
+    t.child[0] = parse_expression()  # just the condition
     match(TokenType.RPAREN)
-    t.child[1] = statement()
+    t.child[1] = parse_compound_stmt()  # require a { … } then-branch
     if token == TokenType.ELSE:
         match(TokenType.ELSE)
-        t.child[2] = statement()
+        t.child[2] = parse_compound_stmt()  # likewise for else
     return t
 
 
@@ -431,7 +431,7 @@ def newExpNode(kind):
         t.nodekind = NodeKind.ExpK
         t.exp = kind
         t.lineno = lineno
-        t.type = ExpType.Void
+        t.type = ExpType.Integer
     return t
 
 
@@ -522,25 +522,39 @@ def printTree(tree):
         printSpaces()
         if tree.nodekind == NodeKind.StmtK:
             if tree.stmt == StmtKind.IfK:
-                print(tree.lineno, "If")
+                print(tree.lineno, "If", tree.type, tree.nodekind, tree.stmt)
             elif tree.stmt == StmtKind.ReturnK:
-                print(tree.lineno, "Return")
+                print(tree.lineno, "Return", tree.type)
             elif tree.stmt == StmtKind.WhileK:
-                print(tree.lineno, "While")
+                print(tree.lineno, "While", tree.type)
             elif tree.stmt == StmtKind.CompoundK:
-                print(tree.lineno, "Compound")
+                print(tree.lineno, "Compound", tree.type)
+            elif tree.stmt == StmtKind.AssignK:
+                print(tree.lineno, "Assign", tree.type)
+            elif tree.stmt == StmtKind.ForK:
+                print(tree.lineno, "For", tree.type)
+            elif tree.stmt == StmtKind.ExpressionK:
+                print(tree.lineno, "Expression", tree.type)
             else:
-                print(tree.lineno, "Unknown ExpNode kind")
+                print(tree.lineno, "Unknown StmtNode kind")
         elif tree.nodekind == NodeKind.ExpK:
             if tree.exp == ExpKind.OpK:
-                print(tree.lineno, "Op: ", end="")
+                print(
+                    tree.lineno,
+                    "Op: ",
+                    end="",
+                )
                 printToken(tree.op, " ")
             elif tree.exp == ExpKind.ConstK:
-                print(tree.lineno, "Const: ", tree.val)
+                print(tree.lineno, "Const: ", tree.val, tree.type)
             elif tree.exp == ExpKind.IdK:
-                print(tree.lineno, "Id: ", tree.name)
+                print(tree.lineno, "Id: ", tree.name, tree.type)
             elif tree.exp == ExpKind.CallK:
-                print(tree.lineno, "Call: ", tree.name)
+                print(tree.lineno, "Call: ", tree.name, tree.type)
+            elif tree.exp == ExpKind.ArrayK:
+                print(tree.lineno, "Array: ", tree.name, tree.type)
+            elif tree.exp == ExpKind.AssignK:
+                print(tree.lineno, "Assign: ", tree.name, tree.type)
             else:
                 print(tree.lineno, "Unknown ExpNode kind")
         elif tree.nodekind == NodeKind.DeclK:
@@ -556,6 +570,15 @@ def printTree(tree):
                 print(tree.lineno, "Param: ", tree.name)
             elif tree.decl == DeclKind.ParamArrayK:
                 print(tree.lineno, "Param Array: ", tree.name)
+            elif tree.decl == DeclKind.ArrayK:
+                print(
+                    tree.lineno,
+                    "Array dec: ",
+                    "Type: ",
+                    tree.type,
+                    ", Name: ",
+                    tree.name,
+                )
             else:
                 print(tree.lineno, "Unknown DeclNode kind")
         else:
@@ -587,6 +610,7 @@ def printSpaces():
 def parser(imprime=True):
     global token, tokenString, lineno
     token, tokenString, lineno = getToken(imprimeScanner)
+
     t = stmt_sequence()
     if token != TokenType.ENDFILE:
         syntaxError("Code ends before file\n")

@@ -1,24 +1,24 @@
 int n;
+void no;
 int a[1];
-int factorial(int n) {
+void hola(void) {
+  print();
+};
+
+int factorial(int ni) {
   if (n == 0) {
-    hola hola ;
-    return n*factorial(2,2);
+    return n*factorial(2,j);
   } 
   else{
-    print()
-    sum = 0 + hola(1,hola +1 );
-
+    print();
+    n = 0 + hola(1,hola +1 );
   }
-}
-
-void main(void) {
-  int result;
-  result = factorial(5);
-}
-print(a <b);
-print(hola);
-n =n * < n n;
+};
 
 
-/*jola*/
+if ( n >= 1 ){
+  1;
+};
+
+
+

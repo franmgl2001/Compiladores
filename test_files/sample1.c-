@@ -22,5 +22,10 @@ int main(int a, int b) {
     hola hola;
 }
 
+void buscar(){
+    hola + 1;
+}
+
+buscar()
 
 hola = 9;
