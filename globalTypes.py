@@ -113,3 +113,4 @@ class TreeNode:
         self.val = None
         self.name = None
         self.type = None
+        self.is_array = False

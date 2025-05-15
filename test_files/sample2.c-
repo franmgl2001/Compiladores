@@ -5,17 +5,9 @@ void hola(void) {
   n =2;
 };
 
-void factorial(int ni) {
-  if (n == 0) {
-    return n*factorial(2);
-  } 
-  else{
-    n = 0;
-  }
-
-  return 1;
-};
-
+int factorial (int c[1]){
+  hola();
+}
 
 if ( hola()){
   factorial();

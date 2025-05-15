@@ -51,9 +51,11 @@ def insert_declaration(t):
             param_node = param_node.sibling
 
         func_metadata = {"params": param_list}
-        st_insert(t.name, t.lineno, location, t.type, metadata=func_metadata)
+        st_insert(
+            t.name, t.lineno, location, t.type, is_array=False, metadata=func_metadata
+        )
     else:
-        st_insert(t.name, t.lineno, location, t.type)
+        st_insert(t.name, t.lineno, location, t.type, is_array=t.is_array)
     location += 1
 
 

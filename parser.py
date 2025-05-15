@@ -95,6 +95,9 @@ def parse_param():
     # En caso de que el parametro sea un array
     if token == TokenType.LBRACKET:
         match(TokenType.LBRACKET)
+        if token == TokenType.NUM:
+            match(TokenType.NUM)
+            node.is_array = True
         match(TokenType.RBRACKET)
         node.decl = DeclKind.ParamArrayK
     return node
@@ -124,6 +127,7 @@ def parse_var_declaration(name, rettype):
         if token == TokenType.NUM:
             node.val = int(tokenString)  # store array size in .val
             match(TokenType.NUM)
+            node.is_array = True
         match(TokenType.RBRACKET)
     match(TokenType.SEMI)
     return node
@@ -136,7 +140,6 @@ def parse_declaration():
     # En caso de que el token no sea un identificador
     if token != TokenType.ID:
         syntaxError("expected identifier in declaration")
-        printToken(token, tokenString)
         return None
     name = tokenString
     match(TokenType.ID)
