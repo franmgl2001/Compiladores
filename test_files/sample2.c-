@@ -2,21 +2,22 @@ int n;
 void no;
 int a[1];
 void hola(void) {
-  print();
+  n =2;
 };
 
-int factorial(int ni) {
+void factorial(int ni) {
   if (n == 0) {
-    return n*factorial(2,j);
+    return n*factorial(2);
   } 
   else{
-    print();
-    n = 0 + hola(1,hola +1 );
+    n = 0;
   }
+
+  return 1;
 };
 
 
-if ( n >= 1 ){
+if ( hola()){
   factorial();
 };
 

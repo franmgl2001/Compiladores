@@ -6,41 +6,44 @@ BucketList = {}
 # memory locations into the symbol table
 # loc = memory location is inserted only the
 # first time, otherwise ignored
-def st_insert(name, lineno, loc, type=None):
+def st_insert(name, lineno, loc, type=None, metadata=None):
     if name in BucketList:
-        BucketList[name].append(lineno)
+        BucketList[name]["linenos"].append(lineno)
     else:
-        if type is not None:
-            BucketList[name] = [loc, lineno, type]
-        else:
-            BucketList[name] = [loc, lineno]
+        BucketList[name] = {
+            "location": loc,
+            "linenos": [lineno],
+            "type": type,
+            "metadata": metadata or {},
+        }
 
 
 # Function st_lookup returns the memory
 # location of a variable or -1 if not found
 def st_lookup(name):
     if name in BucketList:
-        return BucketList[name][0]
-    else:
-        return -1
+        return BucketList[name]["location"]
+    return -1
 
 
-# Function to get the type of a variable
 def st_get_type(name):
-    if name in BucketList and len(BucketList[name]) > 2:
-        return BucketList[name][2]
-    else:
-        return None
+    if name in BucketList:
+        return BucketList[name]["type"]
+    return None
+
+
+def st_get_metadata(name):
+    if name in BucketList:
+        return BucketList[name].get("metadata", {})
+    return {}
 
 
 def printSymTab():
-    print("Variable Name  Location   Line Numbers   Type")
-    print("-------------  --------   ------------   ----")
-    for name in BucketList:
-        print(f"{name:15}{BucketList[name][0]:8d}", end="")
-        for i in range(len(BucketList[name]) - 1):
-            if i == len(BucketList[name]) - 2 and len(BucketList[name]) > 2:
-                print(f"   {BucketList[name][i+1]}", end="")
-            else:
-                print(f"{BucketList[name][i+1]:4d}", end="")
-        print()
+    print("Variable Name  Location   Line Numbers     Type       Metadata")
+    print("-------------  --------   ------------     ----       --------")
+    for name, entry in BucketList.items():
+        loc = entry["location"]
+        lines = ", ".join(map(str, entry["linenos"]))
+        typ = str(entry["type"])
+        metadata = str(entry.get("metadata", {}))
+        print(f"{name:15}{loc:8d}   {lines:14}   {typ:10}   {metadata}")
