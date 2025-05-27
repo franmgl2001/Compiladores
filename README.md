@@ -3,3 +3,4 @@ Actividades del curso de compiladores del profesor Víctor Manuel de la Cueva He
 
 - Lexer
 - Parser
+- Semantic analyzer
