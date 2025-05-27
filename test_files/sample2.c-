@@ -22,10 +22,6 @@ void w(void) {
 };
 int cont;
 cont = k;
-if (a[0]){
-    w;
-};
-
 
 
 
