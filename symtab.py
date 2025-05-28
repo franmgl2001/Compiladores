@@ -37,6 +37,7 @@ def st_insert(name, lineno, loc, type=None, is_array=False, metadata=None):
             "type": type,
             "is_array": is_array,
             "metadata": metadata or {},
+            "offset": None,  # Nuevo atributo offset inicializado en 0n
         }
 
 
@@ -84,20 +85,42 @@ def st_get_is_array(name):
     return False
 
 
+# Funcion para obtener el offset de un simbolo
+def st_get_offset(name):
+    # Si el simbolo existe en el scope actual, se retorna el offset del simbolo
+    for scope in [BucketList] + list(reversed(scopes)):
+        if name in scope:
+            return scope[name].get("offset", 0)
+    return 0
+
+
+# Funcion para establecer el offset de un simbolo
+def st_set_offset(name, offset):
+    # Si el simbolo existe en el scope actual, se establece el offset del simbolo
+    for scope in [BucketList] + list(reversed(scopes)):
+        if name in scope:
+            scope[name]["offset"] = offset
+            return True
+    return False
+
+
 # Funcion para imprimir el simbolo table
 def printSymTab():
     # Funcion para imprimir la tabla de simbolos
     def print_table(table, name):
         print(f"Scope: {name}")
-        print("Name            Loc  Line Nos       Type      IsArray  Metadata")
-        print("-------------   ---- ------------- --------- -------- --------")
+        print("Name            Loc  Line Nos       Type      IsArray  Offset  Metadata")
+        print("-------------   ---- ------------- --------- -------- ------- --------")
         for name, entry in table.items():
             loc = entry["location"]
             lines = ", ".join(map(str, entry["linenos"]))
             typ = str(entry["type"])
             is_array = str(entry.get("is_array", False))
+            offset = str(entry.get("offset", 0))
             metadata = str(entry.get("metadata", {}))
-            print(f"{name:15}{loc:<5} {lines:<13} {typ:<9} {is_array:<8} {metadata}")
+            print(
+                f"{name:15}{loc:<5} {lines:<13} {typ:<9} {is_array:<8} {offset:<7} {metadata}"
+            )
         print()
 
     # Imprimir scopes padre

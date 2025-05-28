@@ -1,0 +1,19 @@
+/* Test program for input and output functions */
+int x;
+
+/* Main function to test input and output */
+int main(void) {
+    /* Prompt for input */
+    output(1);  /* Print 1 to indicate we're waiting for input */
+    
+    /* Read an integer from user */
+    x = input();
+    
+    /* Print the value read */
+    output(x);
+    
+    /* Calculate and print x + 5 */
+    output(x + 5);
+    
+    return 0;
+} 

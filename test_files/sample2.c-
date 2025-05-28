@@ -1,27 +1,6 @@
-int n;
-void no;
-int a[1];
-void hola(void) {
-  n =2;
-};
 
 
-int factorial (int c[1], int k){
-  int cont;
-  while (cont < 4){
-    cont = cont + k;
-  };
-  return k;
-  
-}
-int n;
-
-a[0] = 1;
-void w(void) {
-  a[1] = 1;
-};
-int cont;
-cont = k;
-
+input(1);
+output();
 
 
