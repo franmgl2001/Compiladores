@@ -156,6 +156,9 @@ def buildSymtab(tree, imprime):
     scope_names.clear()
     BucketList.clear()
 
+    # Register built-in functions before traversing the AST
+    register_builtin_functions()
+
     # Start traversal with custom scope-aware function
     custom_traverse(tree)
 
@@ -397,3 +400,25 @@ def typeCheck(syntaxTree):
     global current_function
     current_function = None
     traverse(syntaxTree, lambda t: None, check_node_integrity)
+
+
+# Function to register built-in functions in the symbol table
+def register_builtin_functions():
+    global location
+
+    # Register input() function - takes no parameters and returns an integer
+    input_params = [{"name": "value", "type": ExpType.Integer, "is_array": False}]
+    input_metadata = {"params": input_params}
+    st_insert(
+        "input", 0, location, ExpType.Integer, is_array=False, metadata=input_metadata
+    )
+    location += 1
+
+    # Register output() function - takes an integer parameter and returns void
+
+    output_params = []
+    output_metadata = {"params": output_params}
+    st_insert(
+        "output", 0, location, ExpType.Void, is_array=False, metadata=output_metadata
+    )
+    location += 1
