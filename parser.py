@@ -194,8 +194,9 @@ def parse_expression_and_assignment():
 
     # Save state in case we need to backtrack
     saved_token, saved_string, saved_lineno = token, tokenString, lineno
-    lhs = parse_factor()  # Puede ser IdK o ArrayK
+    lhs = parse_factor()  # This might detect a function call correctly
 
+    # If it's an assignment
     if token == TokenType.EQ:
         match(TokenType.EQ)
         rhs = parse_expression()
@@ -206,25 +207,15 @@ def parse_expression_and_assignment():
         match(TokenType.SEMI)
         return assign
 
-    # Si no fue asignación, revisamos si fue una expresión sin `=`
+    # If lhs is already a function call, don't reset and parse again
+    if lhs and lhs.nodekind == NodeKind.ExpK and lhs.exp == ExpKind.CallK:
+        if token == TokenType.SEMI:
+            match(TokenType.SEMI)
+        return lhs  # Return the function call node directly
+
+    # Otherwise, reset and parse as a normal expression
     token, tokenString, lineno = saved_token, saved_string, saved_lineno
     result = parse_expression()
-    if token == TokenType.SEMI:
-        match(TokenType.SEMI)
-    return result
-
-    result = parse_expression()
-    # En caso de que el token no sea un punto y coma, parentesis, corchete o llave
-    if token not in {
-        TokenType.SEMI,
-        TokenType.RPAREN,
-        TokenType.RBRACKET,
-        TokenType.RBRACE,
-    }:
-        syntaxError("expected expression")
-        printToken(token, tokenString)
-        return None
-    # Consume the semicolon if this is an expression statement
     if token == TokenType.SEMI:
         match(TokenType.SEMI)
     return result
@@ -319,9 +310,8 @@ def parse_factor():
         return t
     else:
         syntaxError("unexpected token -> ")
-        printToken(token, tokenString)  # show the culprit
+        printToken(token, tokenString)
         token, tokenString, lineno = getToken(imprimeScanner)
-        # skip it so parse_term can't reuse it
         return None
 
 
