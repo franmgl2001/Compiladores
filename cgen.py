@@ -396,6 +396,39 @@ def emitMainFunction(AST, f):
                 f.write(f"{end_label}:\n")
                 f.write("    # End of if statement\n")
 
+            elif node.stmt == StmtKind.WhileK:
+                # Handle while statement
+                f.write("    # While statement\n")
+
+                # Generate unique labels
+                loop_start = get_next_label()
+                loop_end = get_next_label()
+
+                # Loop start label
+                f.write(f"{loop_start}:\n")
+                f.write("    # While condition\n")
+
+                # Evaluate condition (child[0])
+                if node.child[0]:
+                    walk(node.child[0])  # Result in $t0 (0 = false, 1 = true)
+
+                # Branch if condition is false (0) - exit loop
+                f.write(
+                    f"    beq  $t0, $zero, {loop_end}  # exit loop if condition is false\n"
+                )
+
+                # Execute loop body (child[1])
+                if node.child[1]:
+                    f.write("    # While body\n")
+                    walk(node.child[1])
+
+                # Jump back to condition check
+                f.write(f"    j    {loop_start}          # jump back to condition\n")
+
+                # Loop end label
+                f.write(f"{loop_end}:\n")
+                f.write("    # End of while statement\n")
+
             elif node.stmt == StmtKind.CompoundK:
                 # Handle compound statement - process all children
                 f.write("    # Compound statement\n")
@@ -406,7 +439,7 @@ def emitMainFunction(AST, f):
         # Process children and siblings for non-expression and non-statement nodes
         if (node.nodekind != NodeKind.ExpK or node.exp not in [ExpKind.OpK]) and (
             node.nodekind != NodeKind.StmtK
-            or node.stmt not in [StmtKind.IfK, StmtKind.CompoundK]
+            or node.stmt not in [StmtKind.IfK, StmtKind.CompoundK, StmtKind.WhileK]
         ):
             for c in node.child:
                 walk(c)
