@@ -1,6 +1,12 @@
+int a;
+int b;
 
 
-input(1);
-output();
+
+void main(){
+    a = 1 +2;
+}
+
+
 
 

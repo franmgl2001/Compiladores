@@ -19,6 +19,33 @@ regNames = {
 TraceCode = False
 
 
+def loadVariable(node, f):
+    """Load a variable's value from its memory location into $t0"""
+    if not node or node.exp != ExpKind.IdK:
+        return False
+
+    # Get the memory location for this variable
+    location = -4  # Default offset if not found
+
+    # Try to get the actual offset
+    try:
+        # Check if this variable exists in the symbol table
+        sym_location = st_lookup(node.name)
+        if sym_location != -1:
+            # Get its offset
+            loc_offset = st_get_offset(node.name)
+            if loc_offset is not None:
+                location = loc_offset
+    except:
+        pass
+
+    # Load variable from stack using offset from $fp
+    f.write(
+        f"    lw   $t0, {location}($fp)  # load {node.name} from offset {location}\n"
+    )
+    return True
+
+
 def emitInputFunction(f):
     f.write("\n# --- input() reads an integer into $v0 ---\n")
     f.write("input:\n")
@@ -94,25 +121,8 @@ def emitMainFunction(AST, f):
                 f.write(f"    li   $t0, {node.val}       # load constant {node.val}\n")
 
             elif node.exp == ExpKind.IdK:
-                # Get the memory location for this variable
-                location = -4  # Default offset if not found
-
-                # Try to get the actual offset
-                try:
-                    # Check if this variable exists in the symbol table
-                    sym_location = st_lookup(node.name)
-                    if sym_location != -1:
-                        # Get its offset
-                        loc_offset = st_get_offset(node.name)
-                        if loc_offset is not None:
-                            location = loc_offset
-                except:
-                    pass
-
-                # Load variable from stack using offset from $fp
-                f.write(
-                    f"    lw   $t0, {location}($fp)  # load {node.name} from offset {location}\n"
-                )
+                # Use the new loadVariable function
+                loadVariable(node, f)
 
             elif node.exp == ExpKind.OpK and node.op == TokenType.EQ:
                 # Handle assignment operation (=)
