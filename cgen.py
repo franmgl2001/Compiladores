@@ -56,25 +56,6 @@ def loadVariable(node, f):
     return True
 
 
-def emitInputFunction(f):
-    f.write("\n# --- input() reads an integer into $v0 ---\n")
-    f.write("input:\n")
-    f.write("    li   $v0, 5\n")
-    f.write("    syscall\n")
-    f.write("    jr   $ra\n")
-
-
-def emitOutputFunction(f):
-    f.write("\n# --- output() takes integer in $a0 ---\n")
-    f.write("output:\n")
-    f.write("    li   $v0, 1\n")
-    f.write("    syscall\n")
-    f.write("    li   $v0, 11\n")
-    f.write("    li   $a0, 10\n")
-    f.write("    syscall\n")
-    f.write("    jr   $ra\n")
-
-
 def collectGlobals(tree, globals_list):
     """Collect all global variables"""
     if not tree:
@@ -480,12 +461,6 @@ def codeGen(syntaxTree, symtab, codefile, trace=False):
         # Print symbol table for debugging
         if trace:
             printSymTab()
-
-        # Emit the built-in functions
-        # emitInputFunction(f)
-        # emitOutputFunction(f)
-
-        # Emit main function with proper variable handling
         emitMainFunction(syntaxTree, f)
 
     # For debugging
