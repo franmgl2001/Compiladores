@@ -224,31 +224,50 @@ def emitMainFunction(AST, f):
             # For function calls
             elif node.exp == ExpKind.CallK:
                 if node.name == "input":
-                    # Input function: read integer from user into $t0
-                    f.write("    # Input function call\n")
-                    f.write("    li   $v0, 5             # syscall 5 = read integer\n")
-                    f.write("    syscall                 # read integer into $v0\n")
-                    f.write("    move $t0, $v0           # move result to $t0\n")
+                    # Input function: evaluate expression and store it at a fixed location
+                    f.write("    # Input function call - store expression value\n")
+                    if node.child and node.child[0]:
+                        # Evaluate the argument expression - result will be in $t0
+                        walk(node.child[0])
+                    else:
+                        # If no argument, read from user
+                        f.write(
+                            "    li   $v0, 5             # syscall 5 = read integer\n"
+                        )
+                        f.write("    syscall                 # read integer into $v0\n")
+                        f.write("    move $t0, $v0           # move result to $t0\n")
+
+                    # Store the value at a fixed memory location (e.g., -4($fp))
+                    f.write(
+                        "    sw   $t0, -4($fp)       # store input value at -4($fp)\n"
+                    )
 
                 elif node.name == "output":
-                    # Output function: print the value in $t0
-                    # First, we need to evaluate the argument and get it into $t0
+                    # Output function: print the stored value
+                    f.write("    # Output function call - print stored value\n")
                     if node.child and node.child[0]:
-                        walk(node.child[0])  # Evaluate argument, result in $t0
+                        # If there's an argument, evaluate and print it directly
+                        walk(node.child[0])
+                        f.write(
+                            "    move $a0, $t0           # move expression result to $a0\n"
+                        )
+                    else:
+                        # If no argument, print the stored value from input
+                        f.write(
+                            "    lw   $t0, -4($fp)       # load stored input value\n"
+                        )
+                        f.write(
+                            "    move $a0, $t0           # move stored value to $a0\n"
+                        )
 
-                    f.write("    # Output function call\n")
-                    f.write(
-                        "    move $a0, $t0           # move value to $a0 for printing\n"
-                    )
+                    # Print the value
                     f.write("    li   $v0, 1             # syscall 1 = print integer\n")
                     f.write("    syscall                 # print the integer\n")
-
-                    # Print a space instead of newline for better compatibility
                     f.write(
                         "    li   $v0, 11            # syscall 11 = print character\n"
                     )
-                    f.write("    li   $a0, 32            # ASCII 32 = space\n")
-                    f.write("    syscall                 # print space\n")
+                    f.write("    li   $a0, 10            # ASCII 10 = newline\n")
+                    f.write("    syscall                 # print newline\n")
 
         # Process children and siblings for non-expression nodes
         if node.nodekind != NodeKind.ExpK or node.exp not in [ExpKind.OpK]:
