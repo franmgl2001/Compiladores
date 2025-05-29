@@ -109,12 +109,7 @@ def emitMainFunction(AST, f):
         if not node:
             return
 
-        # first recurse into children/siblings...
-        for c in node.child:
-            walk(c)
-        walk(node.sibling)
-
-        # then at leaf ExpK nodes:
+        # Handle different node types
         if node.nodekind == NodeKind.ExpK:
             if node.exp == ExpKind.ConstK:
                 # Load constant value into $t0
@@ -124,56 +119,142 @@ def emitMainFunction(AST, f):
                 # Use the new loadVariable function
                 loadVariable(node, f)
 
-            elif node.exp == ExpKind.OpK and node.op == TokenType.EQ:
-                # Handle assignment operation (=)
-                # Right side expression already evaluated and result is in $t0
+            elif node.exp == ExpKind.OpK:
+                if node.op == TokenType.EQ:
+                    # Handle assignment operation (=)
+                    # First evaluate the right side expression
+                    if node.child[1]:
+                        walk(node.child[1])  # This puts the result in $t0
 
-                # Get target variable (left child)
-                target = node.child[0]
-                if target and target.exp == ExpKind.IdK:
-                    # Get the memory location for this variable
-                    location = -4  # Default offset if not found
+                    # Get target variable (left child)
+                    target = node.child[0]
+                    if target and target.exp == ExpKind.IdK:
+                        # Get the memory location for this variable
+                        location = -4  # Default offset if not found
 
-                    # Try to get the actual offset
-                    try:
-                        # Check if this variable exists in the symbol table
-                        sym_location = st_lookup(target.name)
-                        if sym_location != -1:
-                            # Get its offset
-                            loc_offset = st_get_offset(target.name)
-                            if loc_offset is not None:
-                                location = loc_offset
-                    except:
-                        pass
+                        # Try to get the actual offset
+                        try:
+                            # Check if this variable exists in the symbol table
+                            sym_location = st_lookup(target.name)
+                            if sym_location != -1:
+                                # Get its offset
+                                loc_offset = st_get_offset(target.name)
+                                if loc_offset is not None:
+                                    location = loc_offset
+                        except:
+                            pass
 
-                    # Store value to stack using offset from $fp
-                    f.write(
-                        f"    sw   $t0, {location}($fp)  # assign to {target.name} at offset {location}\n"
-                    )
-                    f.write(f"    # Assignment: {target.name} = expression\n")
-                else:
-                    f.write("    # ERROR: Invalid assignment target\n")
+                        # Store value to stack using offset from $fp
+                        f.write(
+                            f"    sw   $t0, {location}($fp)  # assign to {target.name} at offset {location}\n"
+                        )
+                        f.write(f"    # Assignment: {target.name} = expression\n")
+                    else:
+                        f.write("    # ERROR: Invalid assignment target\n")
+
+                elif node.op == TokenType.PLUS:
+                    # Handle addition operation (+)
+                    # Evaluate left operand first
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    # Evaluate right operand
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    # Load left operand and add
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write("    add  $t0, $t1, $t0     # add: $t0 = $t1 + $t0\n")
+
+                elif node.op == TokenType.MINUS:
+                    # Handle subtraction operation (-)
+                    # Evaluate left operand first
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    # Evaluate right operand
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    # Load left operand and subtract
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write("    sub  $t0, $t1, $t0     # subtract: $t0 = $t1 - $t0\n")
+
+                elif node.op == TokenType.TIMES:
+                    # Handle multiplication operation (*)
+                    # Evaluate left operand first
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    # Evaluate right operand
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    # Load left operand and multiply
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write("    mul  $t0, $t1, $t0     # multiply: $t0 = $t1 * $t0\n")
+
+                elif node.op == TokenType.OVER:
+                    # Handle division operation (/)
+                    # Evaluate left operand first
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    # Evaluate right operand
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    # Load left operand and divide
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write("    div  $t1, $t0          # divide $t1 by $t0\n")
+                    f.write("    mflo $t0               # move quotient to $t0\n")
 
             # For function calls
             elif node.exp == ExpKind.CallK:
                 if node.name == "input":
-                    # Get input and save directly to -4($fp)
-                    # Get the argument value from the child node
-                    if node.child and len(node.child) > 0:
-                        arg_node = node.child[0]
-                        if arg_node.exp == ExpKind.ConstK:
-                            f.write(
-                                f"    li   $t0, {arg_node.val}         # load the constant {arg_node.val} into a temp reg\n"
-                            )
-                            f.write(
-                                "    sw   $t0, -4($fp)   # save it to stack slot at fp–4\n"
-                            )
+                    # Input function: read integer from user into $t0
+                    f.write("    # Input function call\n")
+                    f.write("    li   $v0, 5             # syscall 5 = read integer\n")
+                    f.write("    syscall                 # read integer into $v0\n")
+                    f.write("    move $t0, $v0           # move result to $t0\n")
 
                 elif node.name == "output":
-                    # Print value directly from -4($fp)
-                    f.write("    lw   $a0, -4($fp)   # load it back into $a0\n")
-                    f.write("    li   $v0, 1         # syscall 1 = print integer\n")
-                    f.write("    syscall\n")
+                    # Output function: print the value in $t0
+                    # First, we need to evaluate the argument and get it into $t0
+                    if node.child and node.child[0]:
+                        walk(node.child[0])  # Evaluate argument, result in $t0
+
+                    f.write("    # Output function call\n")
+                    f.write(
+                        "    move $a0, $t0           # move value to $a0 for printing\n"
+                    )
+                    f.write("    li   $v0, 1             # syscall 1 = print integer\n")
+                    f.write("    syscall                 # print the integer\n")
+
+                    # Print a space instead of newline for better compatibility
+                    f.write(
+                        "    li   $v0, 11            # syscall 11 = print character\n"
+                    )
+                    f.write("    li   $a0, 32            # ASCII 32 = space\n")
+                    f.write("    syscall                 # print space\n")
+
+        # Process children and siblings for non-expression nodes
+        if node.nodekind != NodeKind.ExpK or node.exp not in [ExpKind.OpK]:
+            for c in node.child:
+                walk(c)
+        walk(node.sibling)
 
     # Process the AST
     walk(AST)

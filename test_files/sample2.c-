@@ -1,10 +1,11 @@
 int a;
 int b;
 
-
-
-void main(){
-    a = 1 +2;
+void main(void){
+    a = 1 + 2;
+    output(a);
+    b = 5 * 3;
+    output(b);
 }
 
 
