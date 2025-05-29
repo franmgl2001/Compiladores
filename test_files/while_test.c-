@@ -1,12 +1,19 @@
 int i;
+int j;
 
 void main(void){
     i = 0;
-    
+    j = 2;
+  
+
     while (i < 3) {
         output(i);
         i = i + 1;
     }
-    
+
+    if (i > j) {
+        output(j);
+    }
+
     output(999);
-} 
+}
