@@ -18,6 +18,16 @@ regNames = {
 # Simple tracing flag
 TraceCode = False
 
+# Label counter for generating unique labels
+label_counter = 0
+
+
+def get_next_label():
+    """Generate a unique label"""
+    global label_counter
+    label_counter += 1
+    return f"L{label_counter}"
+
 
 def loadVariable(node, f):
     """Load a variable's value from its memory location into $t0"""
@@ -221,6 +231,103 @@ def emitMainFunction(AST, f):
                     f.write("    div  $t1, $t0          # divide $t1 by $t0\n")
                     f.write("    mflo $t0               # move quotient to $t0\n")
 
+                # Comparison operators
+                elif node.op == TokenType.LT:
+                    # Handle less than (<)
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write(
+                        "    slt  $t0, $t1, $t0     # set $t0 = 1 if $t1 < $t0, else 0\n"
+                    )
+
+                elif node.op == TokenType.LE:
+                    # Handle less than or equal (<=)
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write(
+                        "    sle  $t0, $t1, $t0     # set $t0 = 1 if $t1 <= $t0, else 0\n"
+                    )
+
+                elif node.op == TokenType.GT:
+                    # Handle greater than (>)
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write(
+                        "    sgt  $t0, $t1, $t0     # set $t0 = 1 if $t1 > $t0, else 0\n"
+                    )
+
+                elif node.op == TokenType.GE:
+                    # Handle greater than or equal (>=)
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write(
+                        "    sge  $t0, $t1, $t0     # set $t0 = 1 if $t1 >= $t0, else 0\n"
+                    )
+
+                elif node.op == TokenType.EQEQ:
+                    # Handle equality (==)
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write(
+                        "    seq  $t0, $t1, $t0     # set $t0 = 1 if $t1 == $t0, else 0\n"
+                    )
+
+                elif node.op == TokenType.NE:
+                    # Handle not equal (!=)
+                    if node.child[0]:
+                        walk(node.child[0])  # Result in $t0
+                        f.write("    subu $sp, $sp, 4       # make space on stack\n")
+                        f.write("    sw   $t0, 0($sp)       # save left operand\n")
+
+                    if node.child[1]:
+                        walk(node.child[1])  # Result in $t0
+
+                    f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
+                    f.write(
+                        "    sne  $t0, $t1, $t0     # set $t0 = 1 if $t1 != $t0, else 0\n"
+                    )
+
             # For function calls
             elif node.exp == ExpKind.CallK:
                 if node.name == "input":
@@ -269,8 +376,57 @@ def emitMainFunction(AST, f):
                     f.write("    li   $a0, 10            # ASCII 10 = newline\n")
                     f.write("    syscall                 # print newline\n")
 
-        # Process children and siblings for non-expression nodes
-        if node.nodekind != NodeKind.ExpK or node.exp not in [ExpKind.OpK]:
+        # Handle statement nodes
+        elif node.nodekind == NodeKind.StmtK:
+            if node.stmt == StmtKind.IfK:
+                # Handle if statement
+                f.write("    # If statement\n")
+
+                # Evaluate condition (child[0])
+                if node.child[0]:
+                    walk(node.child[0])  # Result in $t0 (0 = false, 1 = true)
+
+                # Generate unique labels
+                else_label = get_next_label()
+                end_label = get_next_label()
+
+                # Branch if condition is false (0)
+                f.write(
+                    f"    beq  $t0, $zero, {else_label}  # branch to else if condition is false\n"
+                )
+
+                # Execute then branch (child[1])
+                if node.child[1]:
+                    f.write("    # Then branch\n")
+                    walk(node.child[1])
+
+                # Jump to end to skip else branch
+                f.write(f"    j    {end_label}           # jump to end\n")
+
+                # Else label
+                f.write(f"{else_label}:\n")
+
+                # Execute else branch (child[2]) if it exists
+                if node.child[2]:
+                    f.write("    # Else branch\n")
+                    walk(node.child[2])
+
+                # End label
+                f.write(f"{end_label}:\n")
+                f.write("    # End of if statement\n")
+
+            elif node.stmt == StmtKind.CompoundK:
+                # Handle compound statement - process all children
+                f.write("    # Compound statement\n")
+                for child in node.child:
+                    if child:
+                        walk(child)
+
+        # Process children and siblings for non-expression and non-statement nodes
+        if (node.nodekind != NodeKind.ExpK or node.exp not in [ExpKind.OpK]) and (
+            node.nodekind != NodeKind.StmtK
+            or node.stmt not in [StmtKind.IfK, StmtKind.CompoundK]
+        ):
             for c in node.child:
                 walk(c)
         walk(node.sibling)

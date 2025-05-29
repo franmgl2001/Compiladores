@@ -1,0 +1,11 @@
+int a;
+
+void main(void){
+    a = 3;
+    
+    if (1 < a) {
+        output(100);
+    } else {
+        output(200);
+    }
+} 
