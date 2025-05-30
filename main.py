@@ -7,7 +7,7 @@ from symtab import BucketList, scopes, scope_names
 from cgen import *
 
 
-source_file = "test_files/test_different_values.c-"
+source_file = "test_files/simple_array.c-"
 f = open(source_file, "r")
 programa = f.read()  # lee todo el archivo a compilar
 progLong = len(programa)  # longitud original del programa

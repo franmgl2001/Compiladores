@@ -5,6 +5,15 @@ void main(void) {
     nums[1] = 200;
     nums[2] = 300;
     
+    /* Print nums[0] - should show 100 */
+    input(nums[0]);
+    output();
+    
+    /* Print nums[1] - should show 200 */
     input(nums[1]);
+    output();
+    
+    /* Print nums[2] - should show 300 */
+    input(nums[2]);
     output();
 } 
