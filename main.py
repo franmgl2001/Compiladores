@@ -25,4 +25,4 @@ if not Error:
     # Access to symbol table
     symtab = {"current": BucketList, "scopes": scopes, "scope_names": scope_names}
 
-    codeGen(AST, symtab, "output.tm", True)
+    codeGen(AST, symtab, "output.asm", True)

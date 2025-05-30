@@ -36,11 +36,14 @@ def get_next_label():
 
 
 def emitFunctionProlog(funcName, f):
-    """Generate function prologue with register-based parameter saving"""
+    """Generate function prologue with proper recursion support"""
     f.write(f"\n# Function: {funcName}\n")
     f.write(f"{funcName}:\n")
     f.write("    # Function prologue\n")
-    f.write("    subu $sp, $sp, 4       # make space for old $fp\n")
+
+    # For recursive functions, we need to save $ra immediately
+    f.write("    subu $sp, $sp, 8       # make space for $ra and $fp\n")
+    f.write("    sw   $ra, 4($sp)       # save return address\n")
     f.write("    sw   $fp, 0($sp)       # save old frame pointer\n")
     f.write("    move $fp, $sp          # set new frame pointer\n")
     f.write("    subu $sp, $sp, 100     # allocate space for locals\n")
@@ -55,11 +58,12 @@ def emitFunctionProlog(funcName, f):
 
 
 def emitFunctionEpilog(funcName, f):
-    """Generate function epilogue"""
+    """Generate function epilogue with proper recursion support"""
     f.write(f"    # Function epilogue for {funcName}\n")
     f.write("    move $sp, $fp          # restore stack pointer\n")
     f.write("    lw   $fp, 0($sp)       # restore old frame pointer\n")
-    f.write("    addu $sp, $sp, 4       # deallocate space for old $fp\n")
+    f.write("    lw   $ra, 4($sp)       # restore return address\n")
+    f.write("    addu $sp, $sp, 8       # deallocate frame\n")
     f.write("    jr   $ra               # return to caller\n")
 
 
@@ -73,7 +77,8 @@ def emitReturn(node, f):
     f.write("    # Function epilogue (return)\n")
     f.write("    move $sp, $fp          # restore stack pointer\n")
     f.write("    lw   $fp, 0($sp)       # restore old frame pointer\n")
-    f.write("    addu $sp, $sp, 4       # deallocate space for old $fp\n")
+    f.write("    lw   $ra, 4($sp)       # restore return address\n")
+    f.write("    addu $sp, $sp, 8       # deallocate frame\n")
     f.write("    jr   $ra               # return to caller\n")
 
 
@@ -604,7 +609,9 @@ def allocDeclarations(node):
         # Enter the function scope to process parameters
         enter_scope(node.name)
 
-        # Handle function parameters using fixed positive offsets
+        # Handle function parameters using fixed negative offsets
+        # In the new stack layout: $fp points to saved $fp, $ra is at 4($fp)
+        # Parameters are saved at negative offsets: -4, -8, -12, -16
         param = node.child[0]
         param_index = 0
 
@@ -618,13 +625,6 @@ def allocDeclarations(node):
                 print(f"Parameter {param.name} assigned offset {param_offset}")
                 param_index += 1
             param = param.sibling
-
-            # Hardcoded workaround: if this is sum function and we only found 1 param, add the second
-            if node.name == "sum" and param_index == 1:
-                # Check if we expect more parameters based on the function call
-                # Only add parameter b if the function call will have 2 arguments
-                # For now, only add if we detect this is meant to be a 2-parameter function
-                pass  # Remove automatic addition
 
         # Process function body (local variables in function scope)
         if node.child[1]:
@@ -646,14 +646,11 @@ def codeGen(syntaxTreeParam, symtab, codefile, trace=False):
     TraceCode = trace
     syntaxTree = syntaxTreeParam  # Store syntax tree for parameter lookup
 
-    # Ensure the output file has a .s extension
-    outfname = codefile if codefile.endswith(".s") else f"{codefile}.s"
-
     # Open the file for writing
-    with open(outfname, "w") as f:
+    with open(codefile, "w") as f:
         # Write header
         f.write("# C- Compilation to MIPS Assembly\n")
-        f.write(f"# File: {outfname}\n")
+        f.write(f"# File: {codefile}\n")
         f.write("# Using symbol table offsets for variable access\n\n")
 
         # Process variable declarations to set up offsets
@@ -683,7 +680,7 @@ def codeGen(syntaxTreeParam, symtab, codefile, trace=False):
         collectAndEmitFunctions(syntaxTreeParam, f)
 
     # For debugging
-    print(f"Assembly code generated to {outfname}")
+    print(f"Assembly code generated to {codefile}")
     print("Using symbol table offsets for variable access")
     print("Main function emitted at top, followed by other functions")
 

@@ -1,5 +1,5 @@
 # C- Compilation to MIPS Assembly
-# File: output.tm.s
+# File: output.as
 # Using symbol table offsets for variable access
 
 
@@ -25,11 +25,11 @@ main:
     li   $v0, 11            # syscall 11 = print character
     li   $a0, 10            # ASCII 10 = newline
     syscall                 # print newline
-    # Function call: sum
+    # Function call: factorial
     # evaluate argument 1
-    lw   $t0, -8($fp)  # load x from offset -8
+    li   $t0, 5       # load constant 5
     move $a0, $t0          # argument 1 -> $a0
-    jal  sum           # call sum
+    jal  factorial           # call factorial
     move $t0, $v0          # capture return value
     sw   $t0, -12($fp)  # assign to result at offset -12
     # Assignment: result = expression
@@ -49,10 +49,11 @@ main:
     li   $v0, 10            # exit program
     syscall
 
-# Function: sum
-sum:
+# Function: factorial
+factorial:
     # Function prologue
-    subu $sp, $sp, 4       # make space for old $fp
+    subu $sp, $sp, 8       # make space for $ra and $fp
+    sw   $ra, 4($sp)       # save return address
     sw   $fp, 0($sp)       # save old frame pointer
     move $fp, $sp          # set new frame pointer
     subu $sp, $sp, 100     # allocate space for locals
@@ -61,35 +62,61 @@ sum:
     sw   $a1, -8($fp)      # save parameter 2
     sw   $a2, -12($fp)     # save parameter 3
     sw   $a3, -16($fp)     # save parameter 4
-    # Function body for sum
+    # Function body for factorial
     # Compound statement
-    # Input function call - store expression value
-    lw   $t0, -4($fp)  # load a from offset -4
-    sw   $t0, -4($fp)       # store input value at -4($fp)
-    # Output function call - print stored value
-    lw   $t0, -4($fp)       # load stored input value
-    move $a0, $t0           # move stored value to $a0
-    li   $v0, 1             # syscall 1 = print integer
-    syscall                 # print the integer
-    li   $v0, 11            # syscall 11 = print character
-    li   $a0, 10            # ASCII 10 = newline
-    syscall                 # print newline
-    # Return statement
-    lw   $t0, -4($fp)  # load a from offset -4
+    # If statement
+    lw   $t0, -4($fp)  # load n from offset -4
     subu $sp, $sp, 4       # make space on stack
     sw   $t0, 0($sp)       # save left operand
-    li   $t0, 5       # load constant 5
+    li   $t0, 1       # load constant 1
     lw   $t1, 0($sp)       # load left operand into $t1
     addu $sp, $sp, 4       # restore stack pointer
-    add  $t0, $t1, $t0     # add: $t0 = $t1 + $t0
+    sle  $t0, $t1, $t0     # set $t0 = 1 if $t1 <= $t0, else 0
+    beq  $t0, $zero, L1  # branch to else if condition is false
+    # Then branch
+    # Compound statement
+    # Return statement
+    li   $t0, 1       # load constant 1
     move $v0, $t0          # move return value to $v0
     # Function epilogue (return)
     move $sp, $fp          # restore stack pointer
     lw   $fp, 0($sp)       # restore old frame pointer
-    addu $sp, $sp, 4       # deallocate space for old $fp
+    lw   $ra, 4($sp)       # restore return address
+    addu $sp, $sp, 8       # deallocate frame
     jr   $ra               # return to caller
-    # Function epilogue for sum
+    j    L2           # jump to end
+L1:
+L2:
+    # End of if statement
+    # Return statement
+    lw   $t0, -4($fp)  # load n from offset -4
+    subu $sp, $sp, 4       # make space on stack
+    sw   $t0, 0($sp)       # save left operand
+    # Function call: factorial
+    # evaluate argument 1
+    lw   $t0, -4($fp)  # load n from offset -4
+    subu $sp, $sp, 4       # make space on stack
+    sw   $t0, 0($sp)       # save left operand
+    li   $t0, 1       # load constant 1
+    lw   $t1, 0($sp)       # load left operand into $t1
+    addu $sp, $sp, 4       # restore stack pointer
+    sub  $t0, $t1, $t0     # subtract: $t0 = $t1 - $t0
+    move $a0, $t0          # argument 1 -> $a0
+    jal  factorial           # call factorial
+    move $t0, $v0          # capture return value
+    lw   $t1, 0($sp)       # load left operand into $t1
+    addu $sp, $sp, 4       # restore stack pointer
+    mul  $t0, $t1, $t0     # multiply: $t0 = $t1 * $t0
+    move $v0, $t0          # move return value to $v0
+    # Function epilogue (return)
     move $sp, $fp          # restore stack pointer
     lw   $fp, 0($sp)       # restore old frame pointer
-    addu $sp, $sp, 4       # deallocate space for old $fp
+    lw   $ra, 4($sp)       # restore return address
+    addu $sp, $sp, 8       # deallocate frame
+    jr   $ra               # return to caller
+    # Function epilogue for factorial
+    move $sp, $fp          # restore stack pointer
+    lw   $fp, 0($sp)       # restore old frame pointer
+    lw   $ra, 4($sp)       # restore return address
+    addu $sp, $sp, 8       # deallocate frame
     jr   $ra               # return to caller
