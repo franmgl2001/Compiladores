@@ -21,6 +21,6 @@ void main(void) {
         x = x - 1;
         i[i] = i;
         
-        output(i[i])
+        output(i[x])
     }
 }

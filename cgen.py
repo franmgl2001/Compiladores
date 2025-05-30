@@ -178,6 +178,51 @@ def walkNode(node, f):
             # Use the existing loadVariable function
             loadVariable(node, f)
 
+        elif node.exp == ExpKind.ArrayK:
+            # Handle array access: array[index]
+            # For array access, the array name should be in node.name and index in child[0]
+            if hasattr(node, "name") and node.name and node.child[0]:
+                # Evaluate the index expression
+                walkNode(node.child[0], f)  # index expression result in $t0
+                f.write("    subu $sp, $sp, 4       # make space for index\n")
+                f.write("    sw   $t0, 0($sp)       # save index on stack\n")
+
+                # Get array base address
+                array_name = node.name
+                try:
+                    sym_location = st_lookup(array_name)
+                    if sym_location != -1:
+                        base_offset = st_get_offset(array_name)
+                        if base_offset is not None:
+                            # Load index from stack
+                            f.write(
+                                "    lw   $t1, 0($sp)       # load index into $t1\n"
+                            )
+                            f.write("    addu $sp, $sp, 4       # restore stack\n")
+                            # Calculate address: base + (index * 4)
+                            f.write(
+                                "    sll  $t1, $t1, 2       # multiply index by 4 (shift left 2)\n"
+                            )
+                            f.write(
+                                f"    addi $t2, $fp, {base_offset}  # load array base address\n"
+                            )
+                            f.write(
+                                "    add  $t2, $t2, $t1     # calculate element address\n"
+                            )
+                            f.write("    lw   $t0, 0($t2)       # load array element\n")
+                            f.write(f"    # Array access: {array_name}[index]\n")
+                        else:
+                            f.write("    # ERROR: Array has no offset\n")
+                            f.write("    addu $sp, $sp, 4       # restore stack\n")
+                    else:
+                        f.write("    # ERROR: Array not found in symbol table\n")
+                        f.write("    addu $sp, $sp, 4       # restore stack\n")
+                except:
+                    f.write("    # ERROR: Symbol table access failed\n")
+                    f.write("    addu $sp, $sp, 4       # restore stack\n")
+            else:
+                f.write("    # ERROR: Invalid array access structure\n")
+
         elif node.exp == ExpKind.OpK:
             if node.op == TokenType.EQ:
                 # Handle assignment operation (=)
@@ -186,6 +231,7 @@ def walkNode(node, f):
 
                 target = node.child[0]
                 if target and target.exp == ExpKind.IdK:
+                    # Regular variable assignment
                     location = -4  # Default fallback
                     try:
                         sym_location = st_lookup(target.name)
@@ -206,6 +252,58 @@ def walkNode(node, f):
                         f"    sw   $t0, {location}($fp)  # assign to {target.name} at offset {location}\n"
                     )
                     f.write(f"    # Assignment: {target.name} = expression\n")
+
+                elif target and target.exp == ExpKind.ArrayK:
+                    # Array element assignment: array[index] = value
+                    f.write("    subu $sp, $sp, 4       # save assignment value\n")
+                    f.write("    sw   $t0, 0($sp)       # save value on stack\n")
+
+                    if hasattr(target, "name") and target.name and target.child[0]:
+                        # Evaluate the index expression
+                        walkNode(target.child[0], f)  # index in $t0
+
+                        # Get array base address
+                        array_name = target.name
+                        try:
+                            sym_location = st_lookup(array_name)
+                            if sym_location != -1:
+                                base_offset = st_get_offset(array_name)
+                                if base_offset is not None:
+                                    # Calculate element address
+                                    f.write(
+                                        "    sll  $t0, $t0, 2       # multiply index by 4\n"
+                                    )
+                                    f.write(
+                                        f"    addi $t1, $fp, {base_offset}  # load array base address\n"
+                                    )
+                                    f.write(
+                                        "    add  $t1, $t1, $t0     # calculate element address\n"
+                                    )
+                                    # Load assignment value and store
+                                    f.write(
+                                        "    lw   $t0, 0($sp)       # load assignment value\n"
+                                    )
+                                    f.write(
+                                        "    sw   $t0, 0($t1)       # store value to array element\n"
+                                    )
+                                    f.write(
+                                        f"    # Array assignment: {array_name}[index] = value\n"
+                                    )
+                                else:
+                                    f.write("    # ERROR: Array has no offset\n")
+                            else:
+                                f.write(
+                                    "    # ERROR: Array not found in symbol table\n"
+                                )
+                        except:
+                            f.write("    # ERROR: Symbol table access failed\n")
+                    else:
+                        f.write(
+                            "    # ERROR: Invalid array assignment target structure\n"
+                        )
+
+                    f.write("    addu $sp, $sp, 4       # restore stack\n")
+
                 else:
                     f.write("    # ERROR: Invalid assignment target\n")
 
@@ -422,8 +520,20 @@ def walkNode(node, f):
     # Handle declaration nodes (but skip function declarations as they're handled separately)
     elif node.nodekind == NodeKind.DeclK:
         if node.decl == DeclKind.VarK:
-            # Variable declarations are handled by allocDeclarations
-            pass
+            # Check if it's an array declaration
+            if node.is_array and node.val:
+                # Array declaration: allocate space for array_size * 4 bytes
+                array_size = node.val
+                localOffset += array_size * 4
+                st_set_offset(node.name, -localOffset)
+                print(
+                    f"Array {node.name}[{array_size}] allocated at offset {-localOffset} (size: {array_size * 4} bytes)"
+                )
+            else:
+                # Regular variable: reserve 4 bytes
+                localOffset += 4
+                st_set_offset(node.name, -localOffset)
+                print(f"Variable {node.name} allocated at offset {-localOffset}")
         elif node.decl == DeclKind.FunK:
             # Function declarations are handled separately
             pass
@@ -595,12 +705,20 @@ def allocDeclarations(node):
 
     # If this is a variable declaration
     if node.nodekind == NodeKind.DeclK and node.decl == DeclKind.VarK:
-        # Reserve 4 more bytes
-        localOffset += 4
-
-        # Insert in table: location = -localOffset (negative offset from frame pointer)
-        st_set_offset(node.name, -localOffset)
-        print(f"Variable {node.name} allocated at offset {-localOffset}")
+        # Check if it's an array declaration
+        if node.is_array and node.val:
+            # Array declaration: allocate space for array_size * 4 bytes
+            array_size = node.val
+            localOffset += array_size * 4
+            st_set_offset(node.name, -localOffset)
+            print(
+                f"Array {node.name}[{array_size}] allocated at offset {-localOffset} (size: {array_size * 4} bytes)"
+            )
+        else:
+            # Regular variable: reserve 4 bytes
+            localOffset += 4
+            st_set_offset(node.name, -localOffset)
+            print(f"Variable {node.name} allocated at offset {-localOffset}")
 
     # If this is a function declaration, handle its parameters differently
     elif node.nodekind == NodeKind.DeclK and node.decl == DeclKind.FunK:

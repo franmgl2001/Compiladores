@@ -1,0 +1,15 @@
+int nums[3];
+
+void main(void) {
+    nums[0] = 100;
+    nums[1] = 200;
+    nums[2] = 300;
+    
+    /* Test nums[0] - should show 100 */
+    input(nums[0]);
+    output();
+    
+    /* Test nums[2] - should show 300 */
+    input(nums[2]);
+    output();
+} 

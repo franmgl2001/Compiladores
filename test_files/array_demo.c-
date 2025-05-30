@@ -1,0 +1,16 @@
+int nums[3];
+int i;
+
+void main(void) {
+    nums[0] = 100;
+    nums[1] = 200;
+    nums[2] = 300;
+    
+    /* Print each array element */
+    i = 0;
+    while (i < 3) {
+        input(nums[i]);  /* Store current array element */
+        output();        /* Print it */
+        i = i + 1;
+    }
+} 
