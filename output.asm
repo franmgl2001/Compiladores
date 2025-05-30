@@ -8,7 +8,7 @@
 main:
     move $fp, $sp
     subu $sp, $sp, 100
-    # Main function body
+    # Cuerpo de la funcion main
     # Compound statement
     li   $t0, 100
     subu $sp, $sp, 4
