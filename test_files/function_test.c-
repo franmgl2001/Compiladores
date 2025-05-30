@@ -1,27 +1,15 @@
-
-
 int x;
-int y;
 int result;
 
 int sum(int a, int b) {
-    input(a);
-    output();
-    input(b);
-    output(); 
+    output(a);
+    output(b);
     return a + b;
 }
 
 void main(void) {
     x = 4;
-    y = 3;
-    input(5)
-    output()
-    input(y)
-    output()
-    result = sum(3, x);
-    input(result);
+    output(4);
+    result = sum(x, 2);
     output(result);
-} 
-
-
+}

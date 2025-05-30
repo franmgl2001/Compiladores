@@ -1,0 +1,17 @@
+int x;
+int result;
+
+int sum(int a) {
+    input(a);
+    output();
+    return a + 5;
+}
+
+void main(void) {
+    x = 4;
+    input(4);
+    output();
+    result = sum(x);
+    input(result);
+    output();
+}

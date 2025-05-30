@@ -90,8 +90,8 @@ def st_get_offset(name):
     # Si el simbolo existe en el scope actual, se retorna el offset del simbolo
     for scope in [BucketList] + list(reversed(scopes)):
         if name in scope:
-            return scope[name].get("offset", 0)
-    return 0
+            return scope[name].get("offset")  # Return None if not set
+    return None
 
 
 # Funcion para establecer el offset de un simbolo
@@ -116,7 +116,9 @@ def printSymTab():
             lines = ", ".join(map(str, entry["linenos"]))
             typ = str(entry["type"])
             is_array = str(entry.get("is_array", False))
-            offset = str(entry.get("offset", 0))
+            offset = (
+                str(entry.get("offset")) if entry.get("offset") is not None else "None"
+            )
             metadata = str(entry.get("metadata", {}))
             print(
                 f"{name:15}{loc:<5} {lines:<13} {typ:<9} {is_array:<8} {offset:<7} {metadata}"
