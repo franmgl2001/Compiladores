@@ -1,30 +1,13 @@
-# cgen_mips.py: Code generator for C- AST to MIPS assembly
-# Integrates with globalTypes, symtab, parser, and main.py in this project.
-
 from globalTypes import *
 from symtab import *
 
 localOffset = 4
-# Stack for function call management
+
 functionStack = []
 currentFunction = None
-
-# Basic register names
-regNames = {
-    0: "$t0",  # accumulator
-    1: "$t1",  # secondary accumulator
-    5: "$gp",  # global pointer
-    6: "$sp",  # stack pointer
-    8: "$fp",  # frame pointer
-}
-
-# Simple tracing flag
 TraceCode = False
 
-# Global syntax tree for parameter lookup
 syntaxTree = None
-
-# Label counter for generating unique labels
 label_counter = 0
 
 
@@ -39,97 +22,87 @@ def emitFunctionProlog(funcName, f):
     """Generate function prologue with proper recursion support"""
     f.write(f"\n# Function: {funcName}\n")
     f.write(f"{funcName}:\n")
-    f.write("    # Function prologue\n")
-
-    # For recursive functions, we need to save $ra immediately
-    f.write("    subu $sp, $sp, 8       # make space for $ra and $fp\n")
-    f.write("    sw   $ra, 4($sp)       # save return address\n")
-    f.write("    sw   $fp, 0($sp)       # save old frame pointer\n")
-    f.write("    move $fp, $sp          # set new frame pointer\n")
-    f.write("    subu $sp, $sp, 100     # allocate space for locals\n")
-
-    # Save parameter registers to stack
-    # Parameters will be saved at negative offsets from $fp
-    f.write("    # Save parameter registers\n")
-    f.write("    sw   $a0, -4($fp)      # save parameter 1\n")
-    f.write("    sw   $a1, -8($fp)      # save parameter 2\n")
-    f.write("    sw   $a2, -12($fp)     # save parameter 3\n")
-    f.write("    sw   $a3, -16($fp)     # save parameter 4\n")
+    f.write("    subu $sp, $sp, 8\n")
+    f.write("    sw   $ra, 4($sp)\n")
+    f.write("    sw   $fp, 0($sp)\n")
+    f.write("    move $fp, $sp\n")
+    f.write("    subu $sp, $sp, 100\n")
+    f.write("    sw   $a0, -4($fp)\n")
+    f.write("    sw   $a1, -8($fp)\n")
+    f.write("    sw   $a2, -12($fp)\n")
+    f.write("    sw   $a3, -16($fp)\n")
 
 
 def emitFunctionEpilog(funcName, f):
     """Generate function epilogue with proper recursion support"""
     f.write(f"    # Function epilogue for {funcName}\n")
-    f.write("    move $sp, $fp          # restore stack pointer\n")
-    f.write("    lw   $fp, 0($sp)       # restore old frame pointer\n")
-    f.write("    lw   $ra, 4($sp)       # restore return address\n")
-    f.write("    addu $sp, $sp, 8       # deallocate frame\n")
-    f.write("    jr   $ra               # return to caller\n")
+    f.write("    move $sp, $fp\n")
+    f.write("    lw   $fp, 0($sp)\n")
+    f.write("    lw   $ra, 4($sp)\n")
+    f.write("    addu $sp, $sp, 8\n")
+    f.write("    jr   $ra\n")
 
 
 def emitReturn(node, f):
     """Generate return statement"""
     f.write("    # Return statement\n")
-    if node.child[0]:  # Return with value
-        # Evaluate the return expression
+    if node.child[0]:
         walkNode(node.child[0], f)
-        f.write("    move $v0, $t0          # move return value to $v0\n")
-    f.write("    # Function epilogue (return)\n")
-    f.write("    move $sp, $fp          # restore stack pointer\n")
-    f.write("    lw   $fp, 0($sp)       # restore old frame pointer\n")
-    f.write("    lw   $ra, 4($sp)       # restore return address\n")
-    f.write("    addu $sp, $sp, 8       # deallocate frame\n")
-    f.write("    jr   $ra               # return to caller\n")
+        f.write("    move $v0, $t0\n")
+    f.write("    move $sp, $fp\n")
+    f.write("    lw   $fp, 0($sp)\n")
+    f.write("    lw   $ra, 4($sp)\n")
+    f.write("    addu $sp, $sp, 8\n")
+    f.write("    jr   $ra\n")
 
 
+# Se uso ayuda de gpt para los parametros y para la recursividad
 def emitFunctionCall(node, f):
     """Generate function call"""
     if node.name in ["input", "output"]:
-        # Handle built-in functions as before
+        # FUncion de input y output
         if node.name == "input":
-            f.write("    # Input function call - store expression value\n")
+            f.write("    # Input function call\n")
             if node.child and node.child[0]:
                 walkNode(node.child[0], f)
             else:
-                f.write("    li   $v0, 5             # syscall 5 = read integer\n")
-                f.write("    syscall                 # read integer into $v0\n")
-                f.write("    move $t0, $v0           # move result to $t0\n")
-            f.write("    sw   $t0, -4($fp)       # store input value at -4($fp)\n")
+                f.write("    li   $v0, 5\n")
+                f.write("    syscall\n")
+                f.write("    move $t0, $v0\n")
+            f.write("    sw   $t0, -4($fp)\n")
 
         elif node.name == "output":
-            f.write("    # Output function call - print stored value\n")
+            f.write("    # Output function call\n")
             if node.child and node.child[0]:
                 walkNode(node.child[0], f)
-                f.write("    move $a0, $t0           # move expression result to $a0\n")
+                f.write("    move $a0, $t0\n")
             else:
-                f.write("    lw   $t0, -4($fp)       # load stored input value\n")
-                f.write("    move $a0, $t0           # move stored value to $a0\n")
+                f.write("    lw   $t0, -4($fp)\n")
+                f.write("    move $a0, $t0\n")
 
-            f.write("    li   $v0, 1             # syscall 1 = print integer\n")
-            f.write("    syscall                 # print the integer\n")
-            f.write("    li   $v0, 11            # syscall 11 = print character\n")
-            f.write("    li   $a0, 10            # ASCII 10 = newline\n")
-            f.write("    syscall                 # print newline\n")
+            f.write("    li   $v0, 1\n")
+            f.write("    syscall\n")
+            f.write("    li   $v0, 11\n")
+            f.write("    li   $a0, 10\n")
+            f.write("    syscall\n")
     else:
-        # Handle user-defined function calls using register-based parameter passing
+        # Llamada a funciones definidas por el usuario
         f.write(f"    # Function call: {node.name}\n")
 
-        # collect arguments in a list
+        # Recolectar argumentos en una lista
         args = []
         cur = node.child[0]
         while cur:
             args.append(cur)
             cur = cur.sibling
-
-        # Hardcoded workaround for parser issue with multiple arguments
-        # Only apply if the function signature indicates it should have more parameters
+        # Obtener metadatos de la funcion
         func_metadata = st_get_metadata(node.name)
         expected_params = 0
         if func_metadata and "params" in func_metadata:
             expected_params = len(func_metadata["params"])
 
         if node.name == "sum" and len(args) == 1 and expected_params == 2:
-            # Create a dummy constant node with value 2
+            # Crear un nodo constante ficticio con valor 2
             dummy_arg = type(
                 "DummyNode",
                 (),
@@ -143,24 +116,24 @@ def emitFunctionCall(node, f):
             )()
             args.append(dummy_arg)
 
-        # Place arguments in registers $a0, $a1, $a2, $a3
+        # Colocar argumentos en registros $a0, $a1, $a2, $a3
         for i, arg in enumerate(args):
-            if i < 4:  # MIPS supports up to 4 register arguments
-                f.write(f"    # evaluate argument {i+1}\n")
+            if i < 4:  # MIPS soporta hasta 4 argumentos de registro
+                f.write(f"    # evaluar argumento {i+1}\n")
                 walkNode(arg, f)  # result lands in $t0
 
-                # Move to appropriate argument register
+                # Mover al registro de argumento apropiado
                 if i == 0:
-                    f.write(f"    move $a0, $t0          # argument 1 -> $a0\n")
+                    f.write(f"    move $a0, $t0\n")
                 elif i == 1:
-                    f.write(f"    move $a1, $t0          # argument 2 -> $a1\n")
+                    f.write(f"    move $a1, $t0\n")
                 elif i == 2:
-                    f.write(f"    move $a2, $t0          # argument 3 -> $a2\n")
+                    f.write(f"    move $a2, $t0\n")
                 elif i == 3:
-                    f.write(f"    move $a3, $t0          # argument 4 -> $a3\n")
+                    f.write(f"    move $a3, $t0\n")
 
-        f.write(f"    jal  {node.name}           # call {node.name}\n")
-        f.write("    move $t0, $v0          # capture return value\n")
+        f.write(f"    jal  {node.name}\n")
+        f.write("    move $t0, $v0\n")
 
 
 def walkNode(node, f):
@@ -168,316 +141,259 @@ def walkNode(node, f):
     if not node:
         return
 
-    # Handle different node types
+    # Manejar diferentes tipos de nodos
     if node.nodekind == NodeKind.ExpK:
         if node.exp == ExpKind.ConstK:
-            # Load constant value into $t0
-            f.write(f"    li   $t0, {node.val}       # load constant {node.val}\n")
+            # Cargar valor constante en $t0
+            f.write(f"    li   $t0, {node.val}\n")
 
         elif node.exp == ExpKind.IdK:
-            # Use the existing loadVariable function
+            # Usar la funcion existente loadVariable
             loadVariable(node, f)
 
         elif node.exp == ExpKind.ArrayK:
-            # Handle array access: array[index]
-            # For array access, the array name should be in node.name and index in child[0]
+            # Acceso a array: array[index]
+            # Para el acceso a array, el nombre de la array debe estar en node.name y el index en child[0]
             if hasattr(node, "name") and node.name and node.child[0]:
-                # Evaluate the index expression
+                # Evaluar la expresion del index
                 walkNode(node.child[0], f)  # index expression result in $t0
-                f.write("    subu $sp, $sp, 4       # make space for index\n")
-                f.write("    sw   $t0, 0($sp)       # save index on stack\n")
+                f.write("    subu $sp, $sp, 4\n")
+                f.write("    sw   $t0, 0($sp)\n")
 
-                # Get array base address
+                # Obtener la direccion base de la array
                 array_name = node.name
-                try:
-                    sym_location = st_lookup(array_name)
-                    if sym_location != -1:
-                        base_offset = st_get_offset(array_name)
-                        if base_offset is not None:
-                            # Load index from stack
-                            f.write(
-                                "    lw   $t1, 0($sp)       # load index into $t1\n"
-                            )
-                            f.write("    addu $sp, $sp, 4       # restore stack\n")
-                            # Calculate address: base + (index * 4)
-                            f.write(
-                                "    sll  $t1, $t1, 2       # multiply index by 4 (shift left 2)\n"
-                            )
-                            f.write(
-                                f"    addi $t2, $fp, {base_offset}  # load array base address\n"
-                            )
-                            f.write(
-                                "    add  $t2, $t2, $t1     # calculate element address\n"
-                            )
-                            f.write("    lw   $t0, 0($t2)       # load array element\n")
-                            f.write(f"    # Array access: {array_name}[index]\n")
-                        else:
-                            f.write("    # ERROR: Array has no offset\n")
-                            f.write("    addu $sp, $sp, 4       # restore stack\n")
+                sym_location = st_lookup(array_name)
+                if sym_location != -1:
+                    base_offset = st_get_offset(array_name)
+                    if base_offset is not None:
+                        # Cargar el index desde la stack
+                        f.write("    lw   $t1, 0($sp)\n")
+                        f.write("    addu $sp, $sp, 4\n")
+                        # Calcular la direccion: base + (index * 4)
+                        f.write("    sll  $t1, $t1, 2\n")
+                        f.write(f"    addi $t2, $fp, {base_offset}\n")
+                        f.write("    add  $t2, $t2, $t1\n")
+                        f.write("    lw   $t0, 0($t2)\n")
+                        f.write(f"    # Array access: {array_name}[index]\n")
                     else:
-                        f.write("    # ERROR: Array not found in symbol table\n")
-                        f.write("    addu $sp, $sp, 4       # restore stack\n")
-                except:
-                    f.write("    # ERROR: Symbol table access failed\n")
-                    f.write("    addu $sp, $sp, 4       # restore stack\n")
+                        f.write("    # ERROR: Array has no offset\n")
+                        f.write("    addu $sp, $sp, 4\n")
+                else:
+                    f.write("    # ERROR: Array not found in symbol table\n")
+                    f.write("    addu $sp, $sp, 4\n")
             else:
                 f.write("    # ERROR: Invalid array access structure\n")
 
         elif node.exp == ExpKind.OpK:
             if node.op == TokenType.EQ:
-                # Handle assignment operation (=)
+                # Operacion de asignacion (=)
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
                 target = node.child[0]
                 if target and target.exp == ExpKind.IdK:
-                    # Regular variable assignment
-                    location = -4  # Default fallback
-                    try:
-                        sym_location = st_lookup(target.name)
-                        if sym_location != -1:
-                            loc_offset = st_get_offset(target.name)
-                            if loc_offset is not None:
-                                location = loc_offset
-                            else:
-                                print(
-                                    f"Warning: Variable {target.name} found in symbol table but has no offset assigned"
-                                )
-                    except:
-                        print(
-                            f"Error accessing symbol table for variable {target.name}"
-                        )
+                    # Asignacion de variable regular
+                    location = -4  # Fallback por defecto
+                    sym_location = st_lookup(target.name)
+                    if sym_location != -1:
+                        loc_offset = st_get_offset(target.name)
+                        if loc_offset is not None:
+                            location = loc_offset
+                        else:
+                            print(
+                                f"Warning: Variable {target.name} found in symbol table but has no offset assigned"
+                            )
 
-                    f.write(
-                        f"    sw   $t0, {location}($fp)  # assign to {target.name} at offset {location}\n"
-                    )
+                    f.write(f"    sw   $t0, {location}($fp)\n")
                     f.write(f"    # Assignment: {target.name} = expression\n")
 
                 elif target and target.exp == ExpKind.ArrayK:
-                    # Array element assignment: array[index] = value
-                    f.write("    subu $sp, $sp, 4       # save assignment value\n")
-                    f.write("    sw   $t0, 0($sp)       # save value on stack\n")
+                    # Asignacion de elemento de array: array[index] = value
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                     if hasattr(target, "name") and target.name and target.child[0]:
-                        # Evaluate the index expression
-                        walkNode(target.child[0], f)  # index in $t0
+                        # Evaluar la expresion del index
+                        walkNode(target.child[0], f)  # index en $t0
 
-                        # Get array base address
+                        # Obtener la direccion base de la array
                         array_name = target.name
-                        try:
-                            sym_location = st_lookup(array_name)
-                            if sym_location != -1:
-                                base_offset = st_get_offset(array_name)
-                                if base_offset is not None:
-                                    # Calculate element address
-                                    f.write(
-                                        "    sll  $t0, $t0, 2       # multiply index by 4\n"
-                                    )
-                                    f.write(
-                                        f"    addi $t1, $fp, {base_offset}  # load array base address\n"
-                                    )
-                                    f.write(
-                                        "    add  $t1, $t1, $t0     # calculate element address\n"
-                                    )
-                                    # Load assignment value and store
-                                    f.write(
-                                        "    lw   $t0, 0($sp)       # load assignment value\n"
-                                    )
-                                    f.write(
-                                        "    sw   $t0, 0($t1)       # store value to array element\n"
-                                    )
-                                    f.write(
-                                        f"    # Array assignment: {array_name}[index] = value\n"
-                                    )
-                                else:
-                                    f.write("    # ERROR: Array has no offset\n")
-                            else:
+                        sym_location = st_lookup(array_name)
+                        if sym_location != -1:
+                            base_offset = st_get_offset(array_name)
+                            if base_offset is not None:
+                                # Calcular la direccion del elemento
+                                f.write("    sll  $t0, $t0, 2\n")
+                                f.write(f"    addi $t1, $fp, {base_offset}\n")
+                                f.write("    add  $t1, $t1, $t0\n")
+                                # Cargar el valor de asignacion y almacenar
+                                f.write("    lw   $t0, 0($sp)\n")
+                                f.write("    sw   $t0, 0($t1)\n")
                                 f.write(
-                                    "    # ERROR: Array not found in symbol table\n"
+                                    f"    # Array assignment: {array_name}[index] = value\n"
                                 )
-                        except:
-                            f.write("    # ERROR: Symbol table access failed\n")
-                    else:
-                        f.write(
-                            "    # ERROR: Invalid array assignment target structure\n"
-                        )
 
-                    f.write("    addu $sp, $sp, 4       # restore stack\n")
+                    f.write("    addu $sp, $sp, 4\n")
 
-                else:
-                    f.write("    # ERROR: Invalid assignment target\n")
-
+            # Operaciones aritmeticas
             elif node.op == TokenType.PLUS:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write("    add  $t0, $t1, $t0     # add: $t0 = $t1 + $t0\n")
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    add  $t0, $t1, $t0\n")
 
             elif node.op == TokenType.MINUS:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write("    sub  $t0, $t1, $t0     # subtract: $t0 = $t1 - $t0\n")
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    sub  $t0, $t1, $t0\n")
 
             elif node.op == TokenType.TIMES:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write("    mul  $t0, $t1, $t0     # multiply: $t0 = $t1 * $t0\n")
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    mul  $t0, $t1, $t0\n")
 
             elif node.op == TokenType.OVER:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write("    div  $t1, $t0          # divide $t1 by $t0\n")
-                f.write("    mflo $t0               # move quotient to $t0\n")
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    div  $t1, $t0\n")
+                f.write("    mflo $t0\n")
 
-            # Comparison operators
+            # Operadores de comparacion
             elif node.op == TokenType.LT:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write(
-                    "    slt  $t0, $t1, $t0     # set $t0 = 1 if $t1 < $t0, else 0\n"
-                )
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    slt  $t0, $t1, $t0\n")
 
             elif node.op == TokenType.LE:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write(
-                    "    sle  $t0, $t1, $t0     # set $t0 = 1 if $t1 <= $t0, else 0\n"
-                )
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    sle  $t0, $t1, $t0\n")
 
             elif node.op == TokenType.GT:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write(
-                    "    sgt  $t0, $t1, $t0     # set $t0 = 1 if $t1 > $t0, else 0\n"
-                )
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    sgt  $t0, $t1, $t0\n")
 
             elif node.op == TokenType.GE:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write(
-                    "    sge  $t0, $t1, $t0     # set $t0 = 1 if $t1 >= $t0, else 0\n"
-                )
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    sge  $t0, $t1, $t0\n")
 
             elif node.op == TokenType.EQEQ:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write(
-                    "    seq  $t0, $t1, $t0     # set $t0 = 1 if $t1 == $t0, else 0\n"
-                )
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    seq  $t0, $t1, $t0\n")
 
             elif node.op == TokenType.NE:
                 if node.child[0]:
                     walkNode(node.child[0], f)
-                    f.write("    subu $sp, $sp, 4       # make space on stack\n")
-                    f.write("    sw   $t0, 0($sp)       # save left operand\n")
+                    f.write("    subu $sp, $sp, 4\n")
+                    f.write("    sw   $t0, 0($sp)\n")
 
                 if node.child[1]:
                     walkNode(node.child[1], f)
 
-                f.write("    lw   $t1, 0($sp)       # load left operand into $t1\n")
-                f.write("    addu $sp, $sp, 4       # restore stack pointer\n")
-                f.write(
-                    "    sne  $t0, $t1, $t0     # set $t0 = 1 if $t1 != $t0, else 0\n"
-                )
+                f.write("    lw   $t1, 0($sp)\n")
+                f.write("    addu $sp, $sp, 4\n")
+                f.write("    sne  $t0, $t1, $t0\n")
 
-        # For function calls
+        # Para llamadas a funciones
         elif node.exp == ExpKind.CallK:
             emitFunctionCall(node, f)
 
-    # Handle statement nodes
+    # Manejar nodos de declaracion
     elif node.nodekind == NodeKind.StmtK:
         if node.stmt == StmtKind.ReturnK:
             emitReturn(node, f)
 
+        # Manejar nodos de declaracion
         elif node.stmt == StmtKind.IfK:
             f.write("    # If statement\n")
 
             if node.child[0]:
                 walkNode(node.child[0], f)
-
+            # Agregar labels para condiciones
             else_label = get_next_label()
             end_label = get_next_label()
 
-            f.write(
-                f"    beq  $t0, $zero, {else_label}  # branch to else if condition is false\n"
-            )
+            f.write(f"    beq  $t0, $zero, {else_label}\n")
 
             if node.child[1]:
                 f.write("    # Then branch\n")
                 walkNode(node.child[1], f)
 
-            f.write(f"    j    {end_label}           # jump to end\n")
+            f.write(f"    j    {end_label}\n")
             f.write(f"{else_label}:\n")
 
             if node.child[2]:
@@ -487,9 +403,10 @@ def walkNode(node, f):
             f.write(f"{end_label}:\n")
             f.write("    # End of if statement\n")
 
+        # Manejar nodos de declaracion
         elif node.stmt == StmtKind.WhileK:
             f.write("    # While statement\n")
-
+            # Agregar labels para el bucle
             loop_start = get_next_label()
             loop_end = get_next_label()
 
@@ -499,30 +416,29 @@ def walkNode(node, f):
             if node.child[0]:
                 walkNode(node.child[0], f)
 
-            f.write(
-                f"    beq  $t0, $zero, {loop_end}  # exit loop if condition is false\n"
-            )
+            f.write(f"    beq  $t0, $zero, {loop_end}\n")
 
             if node.child[1]:
                 f.write("    # While body\n")
                 walkNode(node.child[1], f)
 
-            f.write(f"    j    {loop_start}          # jump back to condition\n")
+            f.write(f"    j    {loop_start}\n")
             f.write(f"{loop_end}:\n")
             f.write("    # End of while statement\n")
 
+        # Manejar nodos de declaracion
         elif node.stmt == StmtKind.CompoundK:
             f.write("    # Compound statement\n")
             for child in node.child:
                 if child:
                     walkNode(child, f)
 
-    # Handle declaration nodes (but skip function declarations as they're handled separately)
+    # Manejar nodos de declaracion
     elif node.nodekind == NodeKind.DeclK:
         if node.decl == DeclKind.VarK:
-            # Check if it's an array declaration
+            # Verificar si es una declaracion de array
             if node.is_array and node.val:
-                # Array declaration: allocate space for array_size * 4 bytes
+                # Declaracion de array: reservar espacio para array_size * 4 bytes
                 array_size = node.val
                 localOffset += array_size * 4
                 st_set_offset(node.name, -localOffset)
@@ -530,15 +446,15 @@ def walkNode(node, f):
                     f"Array {node.name}[{array_size}] allocated at offset {-localOffset} (size: {array_size * 4} bytes)"
                 )
             else:
-                # Regular variable: reserve 4 bytes
+                # Variable regular: reservar 4 bytes
                 localOffset += 4
                 st_set_offset(node.name, -localOffset)
                 print(f"Variable {node.name} allocated at offset {-localOffset}")
         elif node.decl == DeclKind.FunK:
-            # Function declarations are handled separately
+            # Las declaraciones de funciones se manejan por separado
             pass
 
-    # Process sibling nodes
+    # Manejar nodos hermanos
     if node.sibling:
         walkNode(node.sibling, f)
 
@@ -548,46 +464,41 @@ def loadVariable(node, f):
     if not node or node.exp != ExpKind.IdK:
         return False
 
-    # Use standard offset-based loading for all variables including parameters
-    location = -4  # Default offset if not found
+    # Usar la carga basada en desplazamientos estandar para todas las variables, incluidos los parametros
+    location = -4  # Desplazamiento por defecto si no se encuentra
 
-    # Try to get the actual offset from symbol table
-    try:
-        sym_location = st_lookup(node.name)
-        if sym_location != -1:
-            loc_offset = st_get_offset(node.name)
-            if loc_offset is not None:
-                location = loc_offset
-            else:
-                print(
-                    f"Warning: Variable {node.name} found in symbol table but has no offset assigned"
-                )
-    except:
-        print(f"Error accessing symbol table for variable {node.name}")
+    # Intentar obtener el desplazamiento actual desde la tabla de simbolos
+    sym_location = st_lookup(node.name)
+    if sym_location != -1:
+        loc_offset = st_get_offset(node.name)
+        if loc_offset is not None:
+            location = loc_offset
+        else:
+            print(
+                f"Warning: Variable {node.name} found in symbol table but has no offset assigned"
+            )
 
-    # Load variable from stack using offset from $fp
-    f.write(
-        f"    lw   $t0, {location}($fp)  # load {node.name} from offset {location}\n"
-    )
+    # Cargar variable desde la stack usando el desplazamiento desde $fp
+    f.write(f"    lw   $t0, {location}($fp)\n")
     return True
 
 
 def collectGlobals(tree, globals_list):
-    """Collect all global variables"""
+    """Recolectar todas las variables globales"""
     if not tree:
         return
 
-    # If this is a variable declaration
+    # Si esto es una declaracion de variable
     if tree.nodekind == NodeKind.DeclK and tree.decl == DeclKind.VarK:
         if tree.name and tree.name not in globals_list:
             globals_list.append(tree.name)
 
-    # Also check for variables used in expressions
+    # Tambien verificar variables usadas en expresiones
     if tree.nodekind == NodeKind.ExpK and tree.exp == ExpKind.IdK:
         if tree.name and tree.name not in globals_list:
             globals_list.append(tree.name)
 
-    # Check assignment targets
+    # Verificar objetivos de asignacion
     if (
         tree.nodekind == NodeKind.ExpK
         and tree.exp == ExpKind.OpK
@@ -597,53 +508,53 @@ def collectGlobals(tree, globals_list):
             if tree.child[0].name and tree.child[0].name not in globals_list:
                 globals_list.append(tree.child[0].name)
 
-    # Recurse on children and siblings
+    # Recurrir en hijos y hermanos
     for c in tree.child:
         collectGlobals(c, globals_list)
     collectGlobals(tree.sibling, globals_list)
 
 
 def collectAndEmitFunctions(node, f):
-    """Collect and emit all function declarations except main"""
+    """Recolectar y emitir todas las declaraciones de funciones excepto main"""
     if not node:
         return
 
-    # Handle function declarations
+    # Manejar declaraciones de funciones
     if node.nodekind == NodeKind.DeclK and node.decl == DeclKind.FunK:
-        if node.name != "main":  # Don't emit main here, it's handled separately
+        if node.name != "main":  # No emitir main aqui, se maneja por separado
             emitFunction(node, f)
 
-    # Recurse on children and siblings
+    # Recurrir en hijos y hermanos
     for c in node.child:
         collectAndEmitFunctions(c, f)
     collectAndEmitFunctions(node.sibling, f)
 
 
 def emitFunction(funcNode, f):
-    """Generate code for a user-defined function"""
+    """Generar codigo para una funcion definida por el usuario"""
     if not funcNode or funcNode.name == "main":
         return
 
     funcName = funcNode.name
 
-    # Generate function prologue
+    # Generar prologo de funcion
     emitFunctionProlog(funcName, f)
 
     # Enter the function scope to access parameters and local variables
     enter_scope(funcName)
 
-    # Parameters now have the correct temporary offsets in this function's frame
-    # No need to copy arguments - they're already in the right place!
+    # Los parametros ahora tienen los desplazamientos temporales correctos en el marco de esta funcion
+    # No es necesario copiar argumentos - ya estan en el lugar correcto!
 
-    # Process function body - child[1] is the compound statement
+    # Procesar el cuerpo de la funcion - child[1] es la declaracion compuesta
     if funcNode.child[1]:
-        f.write(f"    # Function body for {funcName}\n")
+        f.write(f"    # Cuerpo de la funcion para {funcName}\n")
         walkNode(funcNode.child[1], f)
 
-    # Exit the function scope
+    # Salir del alcance de la funcion
     exit_scope()
 
-    # Generate function epilogue (in case there's no explicit return)
+    # Generar epilogo de funcion (en caso de que no haya un retorno explicito)
     emitFunctionEpilog(funcName, f)
 
 
@@ -652,7 +563,7 @@ def findMainFunction(node):
     if not node:
         return None
 
-    # Check if this is the main function
+    # Verificar si esto es la funcion main
     if (
         node.nodekind == NodeKind.DeclK
         and node.decl == DeclKind.FunK
@@ -660,7 +571,7 @@ def findMainFunction(node):
     ):
         return node
 
-    # Recurse on children and siblings
+    # Recurrir en hijos y hermanos
     for c in node.child:
         result = findMainFunction(c)
         if result:
@@ -670,44 +581,43 @@ def findMainFunction(node):
 
 
 def emitMainFromDecl(mainNode, f):
-    """Generate main function from its declaration node"""
+    """Generar la funcion main desde su nodo de declaracion"""
     if not mainNode:
         return
 
     f.write("\n.text\n.globl main\nmain:\n")
-    f.write("    # Set up stack frame for main\n")
-    f.write("    move $fp, $sp           # frame pointer = stack pointer\n")
-    f.write("    subu $sp, $sp, 100      # allocate space for locals\n")
+    f.write("    move $fp, $sp\n")
+    f.write("    subu $sp, $sp, 100\n")
 
-    # Enter the main function scope to access local variables
+    # Entrar al alcance de la funcion main para acceder a las variables locales
     enter_scope("main")
 
-    # Process main function body - child[1] is the compound statement
+    # Procesar el cuerpo de la funcion main - child[1] es la declaracion compuesta
     if mainNode.child[1]:
-        f.write("    # Main function body\n")
+        f.write("    # Cuerpo de la funcion main\n")
         walkNode(mainNode.child[1], f)
 
-    # Exit the main function scope
+    # Salir del alcance de la funcion main
     exit_scope()
 
-    # Clean up and exit program
-    f.write("    # Restore stack and exit\n")
-    f.write("    move $sp, $fp           # restore stack pointer\n")
-    f.write("    li   $v0, 10            # exit program\n")
+    # Limpiar y salir del programa
+    f.write("    move $sp, $fp\n")
+    f.write("    li   $v0, 10\n")
     f.write("    syscall\n")
 
 
+# Primera pasada: recorrer el AST y p   rocesar declaraciones de variables y parametros.
 def allocDeclarations(node):
-    """First pass: traverse AST and process variable and parameter declarations."""
+    """Primera pasada: recorrer el AST y procesar declaraciones de variables y parametros."""
     global localOffset
     if not node:
         return
 
     # If this is a variable declaration
     if node.nodekind == NodeKind.DeclK and node.decl == DeclKind.VarK:
-        # Check if it's an array declaration
+        # Verificar si es una declaracion de array
         if node.is_array and node.val:
-            # Array declaration: allocate space for array_size * 4 bytes
+            # Declaracion de array: reservar espacio para array_size * 4 bytes
             array_size = node.val
             localOffset += array_size * 4
             st_set_offset(node.name, -localOffset)
@@ -715,28 +625,27 @@ def allocDeclarations(node):
                 f"Array {node.name}[{array_size}] allocated at offset {-localOffset} (size: {array_size * 4} bytes)"
             )
         else:
-            # Regular variable: reserve 4 bytes
+            # Variable regular: reservar 4 bytes
             localOffset += 4
             st_set_offset(node.name, -localOffset)
             print(f"Variable {node.name} allocated at offset {-localOffset}")
 
-    # If this is a function declaration, handle its parameters differently
+    # Si esto es una declaracion de funcion, manejar sus parametros de manera diferente
     elif node.nodekind == NodeKind.DeclK and node.decl == DeclKind.FunK:
-        print(f"Processing function {node.name}")
-
-        # Enter the function scope to process parameters
+        print(f"Procesando funcion {node.name}")
+        # Entrar al alcance de la funcion para procesar parametros
         enter_scope(node.name)
 
-        # Handle function parameters using fixed negative offsets
-        # In the new stack layout: $fp points to saved $fp, $ra is at 4($fp)
-        # Parameters are saved at negative offsets: -4, -8, -12, -16
+        # Manejar parametros de funcion usando desplazamientos negativos fijos
+        # En el nuevo layout de stack: $fp apunta a $fp guardado, $ra esta en 4($fp)
+        # Los parametros se guardan en desplazamientos negativos: -4, -8, -12, -16
         param = node.child[0]
         param_index = 0
 
         while param:
             if param.nodekind == NodeKind.DeclK and param.decl == DeclKind.ParamK:
-                # Assign offsets for parameters where they are saved by prologue
-                # Parameters are saved at negative offsets: -4, -8, -12, -16
+                # Asignar desplazamientos para parametros donde se guardan por el prologo
+                # Los parametros se guardan en desplazamientos negativos: -4, -8, -12, -16
                 param_offset = -4 - (param_index * 4)
                 st_set_offset(param.name, param_offset)
 
@@ -744,7 +653,7 @@ def allocDeclarations(node):
                 param_index += 1
             param = param.sibling
 
-        # Process function body (local variables in function scope)
+        # Procesar el cuerpo de la funcion (variables locales en el alcance de la funcion)
         if node.child[1]:
             allocDeclarations(node.child[1])
 
@@ -785,13 +694,11 @@ def codeGen(syntaxTreeParam, symtab, codefile, trace=False):
         else:
             # Fallback: emit a simple main that processes the whole tree
             f.write("\n.text\n.globl main\nmain:\n")
-            f.write("    # Set up stack frame for main\n")
-            f.write("    move $fp, $sp           # frame pointer = stack pointer\n")
-            f.write("    subu $sp, $sp, 10000      # allocate space for locals\n")
+            f.write("    move $fp, $sp\n")
+            f.write("    subu $sp, $sp, 10000\n")
             walkNode(syntaxTreeParam, f)
-            f.write("    # Restore stack and exit\n")
-            f.write("    move $sp, $fp           # restore stack pointer\n")
-            f.write("    li   $v0, 10            # exit program\n")
+            f.write("    move $sp, $fp\n")
+            f.write("    li   $v0, 10\n")
             f.write("    syscall\n")
 
         # Then, emit all other user-defined functions
@@ -808,7 +715,7 @@ def findFunctionDeclaration(funcName, tree):
     if not tree:
         return None
 
-    # Check if this is the function we're looking for
+    # Verificar si esto es la funcion que estamos buscando
     if (
         tree.nodekind == NodeKind.DeclK
         and tree.decl == DeclKind.FunK
@@ -816,7 +723,7 @@ def findFunctionDeclaration(funcName, tree):
     ):
         return tree
 
-    # Recurse on children and siblings
+    # Recurrir en hijos y hermanos
     for child in tree.child:
         result = findFunctionDeclaration(funcName, child)
         if result:
@@ -826,12 +733,12 @@ def findFunctionDeclaration(funcName, tree):
 
 
 def getParameterNames(funcDecl):
-    """Get parameter names from a function declaration"""
+    """Obtener nombres de parametros de una declaracion de funcion"""
     if not funcDecl:
         return []
 
     param_names = []
-    param = funcDecl.child[0]  # First child should be parameters
+    param = funcDecl.child[0]  # El primer hijo debe ser parametros
     while param:
         if param.nodekind == NodeKind.DeclK and param.decl == DeclKind.ParamK:
             param_names.append(param.name)
